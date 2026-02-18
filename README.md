@@ -1,6 +1,6 @@
 ## SemiChain AI - Semiconductor Supply Chain Intelligence Platform
 
-📋 Overview
+## 📋 Overview
 SemiChain AI is a production-grade multi-agent platform for semiconductor supply chain intelligence. Built specifically to demonstrate enterprise-ready AI capabilities for Fortune 500 electronics companies, it combines:
 
 🤖 Multi-Agent AI System - Specialized agents for Procurement, Inventory, Risk, and Compliance
@@ -13,7 +13,11 @@ SemiChain AI is a production-grade multi-agent platform for semiconductor supply
 
 📊 SAP Integration - S/4HANA material master data modeling
 
-✨ Key Features
+## 🎥 Demo Video
+
+https://youtu.be/dibV1tmRAR4 
+
+## ✨ Key Features
 🧠 AI Agent System
 Agent	Expertise	Tools
 Procurement	SAP MM (EKKO/EKPO)	PO analysis, vendor evaluation
@@ -49,7 +53,7 @@ Compliance	EAR/ITAR export control	Conflict minerals, audit trails
 
 ✅ Environment-based config - Dev/prod ready
 
-🏗️ Architecture
+## 🏗️ Architecture
 
 ┌─────────────────────────────────────────────────────┐
 │              React + TypeScript Frontend            │
@@ -72,7 +76,7 @@ Compliance	EAR/ITAR export control	Conflict minerals, audit trails
 │   Supabase    │ │  Gemini  │ │  Vector  │ │  Redis   │
 │  (PostgreSQL) │ │    AI    │ │   DBs    │ │ (Caching)│
 └───────────────┘ └──────────┘ └──────────┘ └──────────┘
-🚀 Tech Stack
+## 🚀 Tech Stack
 Frontend
 ⚛️ React 18 + TypeScript
 
@@ -113,7 +117,7 @@ DevOps
 
 ☁️ Vercel + Render deployment
 
-📦 Installation
+## 📦 Installation
 Prerequisites
 Python 3.11+
 
@@ -236,7 +240,7 @@ Set output directory: dist
 
 Add environment variables
 
-🤝 Contributing
+## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 Fork the repository
@@ -247,7 +251,6 @@ Commit your changes (git commit -m 'Add some AmazingFeature')
 
 Push to the branch (git push origin feature/AmazingFeature)
 
-📧 Contact
+## 📧 Contact
 Kashaf Fatima - kash.fatima7@gmail.com
 
-Project Link: https://github.com/yourusername/semichain-ai`npm run dev`
