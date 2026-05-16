@@ -130,7 +130,8 @@ Gemini API key
 Backend Setup
 bash
 # Clone repository
-git clone https://github.com/yourusername/semichain-ai.git
+git clone 
+https://github.com/kashaffatimajaffrey-design/SemiChai-AI.git
 cd semichain-ai
 
 # Set up Python virtual environment
