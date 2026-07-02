@@ -1,5 +1,5 @@
 {
-  "name": "SemiChain AI",
-  "description": "A production-grade multi-agent platform for semiconductor supply chain intelligence, featuring SAP S/4HANA data integration, multi-tenant RBAC, and advanced risk forecasting.",
+  "name": "Occuris Command",
+  "description": "A pilot-grade semiconductor supply chain command center for BOM intake, sourcing risk, inventory visibility, and SpecMatch alternate-part intelligence.",
   "requestFramePermissions": []
 }

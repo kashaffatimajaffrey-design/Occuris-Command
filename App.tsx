@@ -5,6 +5,8 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import AgentChat from './components/AgentChat';
+import BomIntake from './components/BomIntake';
+import CommandDeck from './components/CommandDeck';
 import InventoryTable from './components/InventoryTable';
 import Analytics from './components/Analytics';
 import VectorLabs from './components/VectorLabs';
@@ -18,7 +20,8 @@ const App: React.FC = () => {
   return (
     <TenantProvider>
       <Router>
-        <div className="flex h-screen overflow-hidden bg-[#fdfaff]">
+        <div className="occuris-app-shell flex h-screen overflow-hidden text-white">
+          <div className="occuris-live-bg" />
           <Sidebar />
           
           <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -27,9 +30,12 @@ const App: React.FC = () => {
               onTenantChange={setSelectedTenant} 
             />
             
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+            <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<CommandDeck />} />
+                <Route path="/overview" element={<Dashboard />} />
+                <Route path="/command" element={<CommandDeck />} />
+                <Route path="/bom-intake" element={<BomIntake />} />
                 <Route path="/agents" element={<AgentChat />} />
                 <Route path="/inventory" element={<InventoryTable />} />
                 <Route path="/analytics" element={<Analytics />} />

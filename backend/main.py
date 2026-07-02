@@ -1,25 +1,81 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from database import supabase
-import os
-import httpx
-from dotenv import load_dotenv
 from pathlib import Path
+import os
 
-# Load .env from the same folder as this script
-env_path = Path(__file__).parent / '.env'
+import httpx
+from agents import run_decision_agent
+from alerts import alert_hub
+from database import supabase
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from intelligence import DISRUPTIONS, disruption_scan, lifecycle_watch, scenario_plan, specmatch
+from knowledge import eval_retrieval, ingest_source, init_knowledge_db, query_knowledge
+from live_feeds import fetch_news_signals, fetch_supplier_quote, fetch_weather_risk, hormuz_countermeasures
+from pydantic import BaseModel
+from scheduler import start_scheduler
+from store import create_bom, get_bom, init_db, list_boms
+
+
+env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-app = FastAPI(title="SemiChain AI API")
+app = FastAPI(title="Occuris Command API")
 
-# Define request model for chat
+
 class ChatRequest(BaseModel):
     agentInstruction: str
     history: list
     userInput: str
 
-# Allow frontend to connect
+
+class BomCreateRequest(BaseModel):
+    tenant_id: str
+    name: str
+    raw_text: str
+    actor: str = "pilot-user"
+
+
+class SpecMatchRequest(BaseModel):
+    mpn: str
+
+
+class DisruptionScanRequest(BaseModel):
+    mpns: list[str]
+
+
+class ScenarioPlanRequest(BaseModel):
+    mpns: list[str]
+    demand_growth_percent: int = 20
+    buffer_days: int = 60
+    shipping_delay_days: int = 14
+    geo_risk_multiplier: float = 1.2
+
+
+class KnowledgeIngestRequest(BaseModel):
+    tenant_id: str
+    source_type: str
+    title: str
+    raw_text: str
+
+
+class KnowledgeQueryRequest(BaseModel):
+    tenant_id: str
+    query: str
+    limit: int = 6
+
+
+class WebhookEventRequest(BaseModel):
+    tenant_id: str
+    source_type: str = "webhook"
+    title: str
+    payload: dict
+
+
+class AgentRequest(BaseModel):
+    tenant_id: str
+    question: str
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3001", "http://localhost:5173", "http://localhost:3000"],
@@ -28,130 +84,205 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+def startup() -> None:
+    init_db()
+    init_knowledge_db()
+    start_scheduler()
+
+
 @app.get("/")
 def root():
-    return {"message": "SemiChain AI API running"}
+    return {"message": "Occuris Command API running"}
+
 
 @app.get("/api/health")
 def health():
-    return {"status": "healthy", "service": "backend"}
+    return {"status": "healthy", "service": "occuris-command-backend"}
 
-# Get materials for a tenant
+
+@app.get("/api/boms/{tenant_id}")
+def get_boms(tenant_id: str):
+    return list_boms(tenant_id)
+
+
+@app.get("/api/bom/{bom_id}")
+def get_bom_by_id(bom_id: str):
+    try:
+        return get_bom(bom_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="BOM not found") from exc
+
+
+@app.post("/api/boms")
+def post_bom(request: BomCreateRequest):
+    try:
+        return create_bom(request.tenant_id, request.name, request.raw_text, request.actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/api/materials/{tenant_id}")
 async def get_materials(tenant_id: str):
     if not supabase:
         return get_mock_materials(tenant_id)
-    
     try:
         response = supabase.table("sap_materials").select("*").eq("tenant_id", tenant_id).execute()
-        if hasattr(response, 'data'):
+        if hasattr(response, "data"):
             return response.data
         return []
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as exc:
+        print(f"Material lookup failed: {exc}")
         return get_mock_materials(tenant_id)
 
-# Chat endpoint - handles Gemini API calls
+
+@app.post("/api/specmatch")
+def post_specmatch(request: SpecMatchRequest):
+    return specmatch(request.mpn)
+
+
+@app.get("/api/lifecycle/{mpn}")
+def get_lifecycle(mpn: str):
+    return lifecycle_watch(mpn)
+
+
+@app.get("/api/disruptions")
+def get_disruptions():
+    return {"signals": DISRUPTIONS}
+
+
+@app.post("/api/disruption-scan")
+def post_disruption_scan(request: DisruptionScanRequest):
+    return disruption_scan(request.mpns)
+
+
+@app.post("/api/scenario-plan")
+def post_scenario_plan(request: ScenarioPlanRequest):
+    return scenario_plan(
+        request.mpns,
+        request.demand_growth_percent,
+        request.buffer_days,
+        request.shipping_delay_days,
+        request.geo_risk_multiplier,
+    )
+
+
+@app.post("/api/knowledge/ingest")
+def post_knowledge_ingest(request: KnowledgeIngestRequest):
+    return ingest_source(request.tenant_id, request.source_type, request.title, request.raw_text)
+
+
+@app.post("/api/knowledge/query")
+def post_knowledge_query(request: KnowledgeQueryRequest):
+    return query_knowledge(request.tenant_id, request.query, request.limit)
+
+
+@app.get("/api/knowledge/eval/{tenant_id}")
+def get_knowledge_eval(tenant_id: str):
+    return eval_retrieval(tenant_id)
+
+
+@app.get("/api/live/news")
+async def live_news(query: str = "semiconductor supply chain Strait of Hormuz"):
+    return {"signals": await fetch_news_signals(query)}
+
+
+@app.get("/api/live/weather")
+async def live_weather(location: str = "Strait of Hormuz"):
+    return await fetch_weather_risk(location)
+
+
+@app.get("/api/live/supplier/{mpn}")
+async def live_supplier(mpn: str):
+    return await fetch_supplier_quote(mpn)
+
+
+@app.get("/api/playbooks/hormuz")
+def get_hormuz_playbook():
+    return hormuz_countermeasures()
+
+
+@app.post("/api/webhooks/ingest")
+async def webhook_ingest(request: WebhookEventRequest):
+    raw_text = str(request.payload)
+    result = ingest_source(request.tenant_id, request.source_type, request.title, raw_text)
+    await alert_hub.broadcast({"type": "webhook_ingested", "title": request.title, "result": result})
+    return result
+
+
+@app.post("/api/agents/decision")
+def decision_agent(request: AgentRequest):
+    evidence = query_knowledge(request.tenant_id, request.question, 5)
+    return run_decision_agent(request.question, evidence)
+
+
+@app.websocket("/ws/alerts/{tenant_id}")
+async def websocket_alerts(websocket: WebSocket, tenant_id: str):
+    await alert_hub.connect(websocket)
+    await websocket.send_json({"type": "connected", "tenant_id": tenant_id})
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        alert_hub.disconnect(websocket)
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    print(f"✅ Chat endpoint called with: {request.userInput}")
-    
-    # Get API key from environment
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ GEMINI_API_KEY not set")
         return {"text": "Error: GEMINI_API_KEY not configured on server"}
-    
-    # Use correct model name from your list
-    model = "gemini-3-pro-preview"
-    print(f"📡 Using model: {model}")
-    
-    # Build the conversation
-    contents = []
-    
-    # Add system instruction as first user message
-    contents.append({
-        "role": "user",
-        "parts": [{"text": f"{request.agentInstruction}\n\n{request.userInput}"}]
-    })
-    
-    # Add history
+
+    model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
+    contents = [
+        {
+            "role": "user",
+            "parts": [{"text": f"{request.agentInstruction}\n\n{request.userInput}"}],
+        }
+    ]
+
     for msg in request.history:
-        contents.append({
-            "role": "user" if msg["role"] == "user" else "model",
-            "parts": [{"text": msg["content"]}]
-        })
-    
-    print(f"📤 Sending to Gemini API: {len(contents)} messages")
-    
-    # Call Gemini API from backend
+        contents.append(
+            {
+                "role": "user" if msg["role"] == "user" else "model",
+                "parts": [{"text": msg["content"]}],
+            }
+        )
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                 params={"key": api_key},
                 json={
-                    "contents": contents, 
+                    "contents": contents,
                     "generationConfig": {
                         "temperature": 0.7,
-                        "maxOutputTokens": 1024
-                    }
+                        "maxOutputTokens": 1024,
+                    },
                 },
-                timeout=30.0
+                timeout=30.0,
             )
-            
-            print(f"📥 Gemini API response status: {response.status_code}")
-            
-            if response.status_code != 200:
-                error_text = await response.text()
-                print(f"❌ Gemini API error: {error_text}")
-                return {"text": f"Error from Gemini API: {response.status_code}"}
-            
-            data = response.json()
-            
-            # Extract text from response with safe navigation
-            try:
-                # Navigate the nested structure safely
-                if not isinstance(data, dict):
-                    return {"text": f"Unexpected response type: {type(data)}"}
-                
-                candidates = data.get("candidates", [])
-                if not candidates or not isinstance(candidates, list):
-                    return {"text": "No candidates in response"}
-                
-                candidate = candidates[0]
-                if not isinstance(candidate, dict):
-                    return {"text": "Invalid candidate format"}
-                
-                content = candidate.get("content", {})
-                if not isinstance(content, dict):
-                    return {"text": "Invalid content format"}
-                
-                parts = content.get("parts", [])
-                if not parts or not isinstance(parts, list):
-                    return {"text": "No parts in response"}
-                
-                part = parts[0]
-                if not isinstance(part, dict):
-                    return {"text": "Invalid part format"}
-                
-                text = part.get("text", "")
-                if not text:
-                    return {"text": "Empty response text"}
-                
-                print(f"✅ Successfully got response: {text[:50]}...")
-                return {"text": text}
-                
-            except Exception as e:
-                print(f"❌ Error parsing response: {e}")
-                print(f"Response data: {data}")
-                return {"text": f"Error parsing response: {str(e)}"}
-                
-    except Exception as e:
-        print(f"❌ Exception during API call: {e}")
-        return {"text": f"Error: {str(e)}"}
 
-# Mock data fallback
+            if response.status_code != 200:
+                print(f"Gemini API error: {response.text}")
+                return {"text": f"Error from Gemini API: {response.status_code}"}
+
+            data = response.json()
+            candidates = data.get("candidates", [])
+            if not candidates:
+                return {"text": "No candidates in response"}
+
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts:
+                return {"text": "No parts in response"}
+
+            return {"text": parts[0].get("text", "Empty response text")}
+    except Exception as exc:
+        return {"text": f"Error: {str(exc)}"}
+
+
 def get_mock_materials(tenant_id: str):
     mock_data = {
         "global-semi-01": [
@@ -164,12 +295,9 @@ def get_mock_materials(tenant_id: str):
         ],
         "nano-foundry-ops": [
             {"matnr": "MAT-3301", "name": "HBM3 Memory Die (8GB)", "category": "Component", "stock_level": 12000, "safety_stock": 3000, "lead_time": 60, "supplier": "SK Hynix", "abc_class": "A", "unit": "Die"},
-        ]
+        ],
     }
     return mock_data.get(tenant_id, [])
 
-print("✅ Server startup complete - endpoints registered:")
-print("   - GET  /")
-print("   - GET  /api/health")
-print("   - GET  /api/materials/{tenant_id}")
-print("   - POST /api/chat")
+
+print("Occuris Command server startup complete.")

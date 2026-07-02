@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+python-dotenv
+supabase
+apscheduler
+langchain
+langgraph
+llama-index
+openai
+resend
