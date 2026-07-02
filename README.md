@@ -1,257 +1,211 @@
-## SemiChain AI - Semiconductor Supply Chain Intelligence Platform
+# Occuris Command - Semiconductor Supply Chain Intelligence Platform
 
 ## 📋 Overview
-SemiChain AI is a production-grade multi-agent platform for semiconductor supply chain intelligence. Built specifically to demonstrate enterprise-ready AI capabilities for Fortune 500 electronics companies, it combines:
 
-🤖 Multi-Agent AI System - Specialized agents for Procurement, Inventory, Risk, and Compliance
+Occuris Command (formerly SemiChain AI) is a multi-agent platform for semiconductor supply chain intelligence, built to demonstrate enterprise-relevant AI architecture for electronics/manufacturing supply chains. It combines a multi-agent reasoning layer, a hybrid retrieval architecture, and a Supabase-based multi-tenant data model.
 
-🔍 Hybrid RAG Architecture - All 4 major vector databases (FAISS, ChromaDB, pgvector, Qdrant)
-
-🏢 Enterprise SaaS Features - Multi-tenancy, RBAC, audit logging
-
-⚡ Real-time Monitoring - Prometheus-style metrics, Kubernetes visualization
-
-📊 SAP Integration - S/4HANA material master data modeling
+**Status:** Core backend and frontend (Command Deck) are working locally today. A second layer of features — live external data feeds, geopolitical playbooks, webhook/alert infrastructure, and Supabase/pgvector-backed storage — has been scaffolded (routes, schema, and dependencies are in place) but is **not yet live**: it needs API credentials and a storage migration to become fully operational. See [Status Breakdown](#-status-breakdown) below for exactly what's running vs. what's wired-but-dormant.
 
 ## 🎥 Demo Video
 
-https://youtu.be/dibV1tmRAR4 
+[Watch on YouTube](https://youtu.be/dibV1tmRAR4)
 
-## ✨ Key Features
-🧠 AI Agent System
-Agent	Expertise	Tools
-Procurement	SAP MM (EKKO/EKPO)	PO analysis, vendor evaluation
-Inventory	S/4HANA Material Master	ABC/XYZ classification, safety stock
-Supplier Risk	Geopolitical monitoring	Financial health, disruption alerts
-Compliance	EAR/ITAR export control	Conflict minerals, audit trails
-🔍 Vector Database Architecture
+*(Demonstrates the currently-working local version — see status breakdown for what's changed since.)*
 
-┌─────────────────────────────────────┐
-│         Hybrid RAG Engine           │
-├─────────────────────────────────────┤
-│  FAISS     │  ChromaDB  │  pgvector │
-│  (Local)   │  (File)    │  (SQL)    │
-├─────────────────────────────────────┤
-│           Qdrant (Cloud)            │
-│      Ensemble Reranking Layer       │
-└─────────────────────────────────────┘
-🏢 Enterprise Features
-✅ Multi-tenancy - Complete tenant isolation with RLS
+## ✅ Status Breakdown
 
-✅ RBAC - Admin, Procurement, Viewer roles
+### Working now (local, no extra credentials required)
 
-✅ Audit Logging - Full traceability of all actions
+- FastAPI backend (`backend/main.py`)
+- SQLite-based persistence, including basic BOM (bill-of-materials) storage
+- Deterministic SpecMatch, lifecycle, risk, and scenario logic (rule-based, not yet LLM-adjudicated end-to-end)
+- Basic keyword-based retrieval
+- Basic F1-style evaluation harness
+- React + TypeScript frontend ("Command Deck")
+- Multi-agent chat (`/api/chat`) against Gemini
+- `get_materials` Supabase branch (previously broken, now fixed)
 
-✅ Tool Security - IAM-based permission validation
+### Scaffolded — code is merged, but needs API keys or a storage migration to actually go live
 
-⚡ Production Ready
-✅ Kubernetes-style monitoring - Node health, pod counts
+These endpoints exist, build, and compile, but currently respond without real data (or don't yet persist to the production store) until the corresponding credential is set:
 
-✅ Prometheus metrics - Request rates, error tracking
+| Feature | Endpoint / File | Needs |
+|---|---|---|
+| Live news feed | `GET /api/live/news` | `NEWS_API_KEY` |
+| Live weather feed | `GET /api/live/weather` | `OPENWEATHER_API_KEY` |
+| Live supplier lookup | `GET /api/live/supplier/{mpn}` | `SUPPLIER_API_KEY` |
+| Strait of Hormuz playbook | `GET /api/playbooks/hormuz` | Live feed data above |
+| Webhook ingestion | `POST /api/webhooks/ingest` | Inbound integration configured on sender side |
+| Live per-tenant alerts | `ws://localhost:8000/ws/alerts/{tenant_id}` | Alert-producing pipeline (webhooks/scheduler) running |
+| Decision agent | `POST /api/agents/decision` | Cross-agent signals populated (depends on above) |
+| Scheduled ingestion worker | `backend/scheduler.py` | Same credentials as live feeds |
+| Supabase production schema | [`supabase/schema.sql`](supabase/schema.sql) | `SUPABASE_URL`, `SUPABASE_KEY`, and a run of the migration — **not yet the live storage backend; SQLite is still what the app reads/writes today** |
 
-✅ CORS configured - Secure frontend-backend communication
+New dependencies added to support this layer: `apscheduler`, `langchain`, `langgraph`, `llama-index`, `openai`, `resend`.
 
-✅ Environment-based config - Dev/prod ready
+Build passes. Python compile passes. This reflects that the code is syntactically and structurally sound — it does not yet reflect end-to-end integration testing of the live-feed/Supabase layer.
 
-## 🏗️ Architecture
+### Not yet built
 
+- Frontend panels wired to the new live endpoints
+- SQLite → Supabase/pgvector migration for knowledge storage (schema is written; the app doesn't read/write it yet)
+- End-to-end verification of the Supabase schema under real load
+
+## 🏗️ Intended Architecture (once the migration above is complete)
+
+```
 ┌─────────────────────────────────────────────────────┐
-│              React + TypeScript Frontend            │
-│         Multi-tenant Dashboard + Agent Chat         │
+│              React + TypeScript Frontend             │
+│         Multi-tenant Dashboard + Agent Chat           │
 └─────────────────────┬───────────────────────────────┘
-                      │
+                       │
 ┌─────────────────────▼───────────────────────────────┐
-│              FastAPI Backend (Port 8000)            │
-│         ┌─────────────────────────────────┐         │
-│         │   API Endpoints:                 │         │
-│         │   • /api/chat - Agent proxy      │         │
-│         │   • /api/materials - SAP data    │         │
-│         │   • /api/health - System status  │         │
-│         └─────────────────────────────────┘         │
+│              FastAPI Backend (Port 8000)              │
+│  • /api/chat            - Agent proxy (LIVE)          │
+│  • /api/materials       - SAP data (LIVE, SQLite)     │
+│  • /api/health          - System status (LIVE)        │
+│  • /api/live/*          - Live feeds (needs keys)     │
+│  • /api/playbooks/hormuz - Hormuz playbook (needs feeds)│
+│  • /api/webhooks/ingest - Webhook intake (scaffolded) │
+│  • /api/agents/decision - Decision agent (scaffolded) │
+│  • /ws/alerts/{tenant_id} - Alert stream (scaffolded) │
 └─────────────────────┬───────────────────────────────┘
-                      │
-        ┌─────────────┼─────────────┬─────────────┐
-        ▼             ▼             ▼             ▼
-┌───────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│   Supabase    │ │  Gemini  │ │  Vector  │ │  Redis   │
-│  (PostgreSQL) │ │    AI    │ │   DBs    │ │ (Caching)│
-└───────────────┘ └──────────┘ └──────────┘ └──────────┘
+                       │
+       ┌───────────────┼───────────────┬───────────────┐
+       ▼               ▼               ▼               ▼
+┌───────────────┐ ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ SQLite (today)│ │  Gemini  │   │  Vector  │   │  Redis   │
+│ Supabase (WIP)│ │    AI    │   │   DBs    │   │(planned) │
+└───────────────┘ └──────────┘   └──────────┘   └──────────┘
+```
+
 ## 🚀 Tech Stack
-Frontend
-⚛️ React 18 + TypeScript
 
-🎨 Tailwind CSS for styling
+**Frontend**
+- React 18 + TypeScript, Tailwind CSS, Recharts, React Router
 
-📊 Recharts for data visualization
+**Backend**
+- FastAPI (Python 3.11+)
+- SQLite (current storage) / Supabase + pgvector (in-progress migration target)
+- Gemini AI for agent intelligence; OpenAI SDK as alternate provider
+- LangChain + LangGraph for multi-agent orchestration (added, not fully wired into the live decision path yet)
+- LlamaIndex for RAG indexing (added, not fully wired yet)
+- APScheduler for scheduled live-feed ingestion (scaffolded)
+- Resend for alert email delivery (scaffolded)
 
-🔄 React Router for navigation
-
-🧩 Custom hooks for tenant context
-
-Backend
-🚀 FastAPI (Python 3.11+)
-
-🔐 JWT authentication ready
-
-📦 Supabase (PostgreSQL + pgvector)
-
-🤖 Gemini AI Pro for agent intelligence
-
-🌐 HTTPX for async API calls
-
-Vector Databases
-🔍 FAISS - Local similarity search
-
-📁 ChromaDB - Persistent file store
-
-🗄️ pgvector - SQL-based vector search
-
-☁️ Qdrant - Cloud distributed search
-
-DevOps
-🐳 Docker containerization
-
-🔄 GitHub Actions CI/CD
-
-📊 Prometheus + Grafana monitoring
-
-☁️ Vercel + Render deployment
+**Vector Databases (target architecture, not all active yet)**
+- pgvector via Supabase — schema written, not yet the live read/write path
+- FAISS / ChromaDB / Qdrant — referenced in architecture, integration status per-DB should be verified before claiming "hybrid RAG" externally
 
 ## 📦 Installation
-Prerequisites
-Python 3.11+
 
-Node.js 18+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Supabase account (only needed once you migrate off SQLite)
+- Gemini API key
 
-Supabase account (free tier)
+### Backend Setup
 
-Gemini API key
+```bash
+git clone https://github.com/kashaffatimajaffrey-design/Occuris-Command.git
+cd Occuris-Command
 
-Backend Setup
-bash
-# Clone repository
-git clone 
-https://github.com/kashaffatimajaffrey-design/SemiChai-AI.git
-cd semichain-ai
-
-# Set up Python virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install dependencies
 cd backend
 pip install -r requirements.txt
 
-# Configure environment
 cp .env.example .env
-# Edit .env with your credentials:
-# - SUPABASE_URL
-# - SUPABASE_KEY
-# - GEMINI_API_KEY
+# Add GEMINI_API_KEY at minimum to run the working local features.
+# Add NEWS_API_KEY / OPENWEATHER_API_KEY / SUPPLIER_API_KEY / SUPABASE_URL /
+# SUPABASE_KEY / RESEND_API_KEY only if you want to exercise the scaffolded layer.
 
-# Run database migrations (Supabase SQL in /migrations)
-
-# Start backend server
 python -m uvicorn main:app --reload --port 8000
-Frontend Setup
-bash
-# In a new terminal
-cd frontend
-npm install
 
-# Configure environment
+# Optional — only does something useful once live-feed keys are set:
+python backend/scheduler.py
+```
+
+### Frontend Setup
+
+```bash
+npm install
 cp .env.example .env
 # Add VITE_GEMINI_API_KEY
-
-# Start development server
 npm run dev
-Environment Variables
-Backend .env
+```
 
-env
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-GEMINI_API_KEY=your_gemini_api_key
-Frontend .env
+## 🔑 Environment Variables
 
-env
-VITE_GEMINI_API_KEY=your_gemini_api_key
-🎯 API Endpoints
-Method	Endpoint	Description
-GET	/	API health check
-GET	/api/health	Detailed health status
-GET	/api/materials/{tenant_id}	Get SAP materials for tenant
-POST	/api/chat	Agent chat endpoint
-Chat Request Format
-json
-{
-  "agentInstruction": "You are a procurement expert...",
-  "history": [
-    {"role": "user", "content": "Previous message"},
-    {"role": "model", "content": "Previous response"}
-  ],
-  "userInput": "What is the lead time for ASML masks?"
-}
-🧪 Testing
-bash
-# Backend tests
-cd backend
-pytest tests/
+| Variable | Purpose | Required for |
+|---|---|---|
+| `GEMINI_API_KEY` / `VITE_GEMINI_API_KEY` | Agent intelligence | Core app (works today) |
+| `NEWS_API_KEY` | `/api/live/news` | Scaffolded live-feed layer |
+| `OPENWEATHER_API_KEY` | `/api/live/weather` | Scaffolded live-feed layer |
+| `SUPPLIER_API_KEY` | `/api/live/supplier/{mpn}` | Scaffolded live-feed layer |
+| `SUPABASE_URL` / `SUPABASE_KEY` | Production schema + pgvector | In-progress storage migration |
+| `RESEND_API_KEY` | Alert email delivery | Scaffolded alerting layer |
 
-# Frontend tests
-cd frontend
+Without the live-feed and Supabase keys, the app runs fully on its working local feature set — the new endpoints will still respond but without live data or persistence.
+
+## 🗄️ Supabase Production Schema (in progress)
+
+[`supabase/schema.sql`](supabase/schema.sql) defines the target production schema:
+
+- `organizations` / `organization_members` — tenant + RBAC roles
+- `boms` / `bom_items` — bill-of-materials and line items
+- `knowledge_sources` / `knowledge_chunks` — ingested documents, chunked and embedded (`vector(1536)`, `ivfflat` cosine index)
+- `operational_events` — timestamped events with severity
+- `alerts` — alert records surfaced via the WebSocket stream
+
+RLS is enabled on every table. **This schema has not yet been run end-to-end in production and the backend does not yet read/write to it** — SQLite remains the live storage layer until the migration is complete.
+
+## 🧪 Testing
+
+```bash
+cd backend && pytest tests/
 npm test
-📊 Project Structure
+```
 
-semichain-ai/
-├── backend/
-│   ├── main.py              # FastAPI application
-│   ├── database.py           # Supabase connection
-│   ├── requirements.txt      # Python dependencies
-│   └── .env                  # Backend environment
-├── frontend/
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── services/         # API services
-│   │   ├── contexts/         # React contexts
-│   │   ├── hooks/            # Custom hooks
-│   │   ├── types.ts          # TypeScript types
-│   │   └── constants.ts      # App constants
-│   ├── public/               # Static assets
-│   └── .env                  # Frontend environment
-├── docker/                   # Docker configurations
-├── k8s/                      # Kubernetes manifests
-└── README.md                 # This file
-🚀 Deployment
-Backend (Render)
-Connect GitHub repository
+Current status: build passes, Python compile passes. This confirms structural correctness of the added code; it does not yet confirm end-to-end behavior of the live-feed/Supabase layer, since that requires credentials this environment doesn't have configured.
 
-Set build command: pip install -r requirements.txt
+## 🎯 API Endpoints
 
-Set start command: uvicorn main:app --host 0.0.0.0 --port $PORT
+| Method | Endpoint | Status |
+|---|---|---|
+| GET | `/` | Live |
+| GET | `/api/health` | Live |
+| GET | `/api/materials/{tenant_id}` | Live (SQLite) |
+| POST | `/api/chat` | Live |
+| GET | `/api/live/news` | Scaffolded — needs `NEWS_API_KEY` |
+| GET | `/api/live/weather` | Scaffolded — needs `OPENWEATHER_API_KEY` |
+| GET | `/api/live/supplier/{mpn}` | Scaffolded — needs `SUPPLIER_API_KEY` |
+| GET | `/api/playbooks/hormuz` | Scaffolded — depends on live feeds |
+| POST | `/api/webhooks/ingest` | Scaffolded — needs sender-side integration |
+| POST | `/api/agents/decision` | Scaffolded — depends on live signal sources |
+| WS | `/ws/alerts/{tenant_id}` | Scaffolded — depends on alert-producing pipeline |
 
-Add environment variables
+## 🛣️ Roadmap
 
-Frontend (Vercel)
-Import GitHub repository
-
-Set build command: npm run build
-
-Set output directory: dist
-
-Add environment variables
+- [ ] Wire frontend panels to `/api/live/*`, `/api/playbooks/hormuz`, and the alert WebSocket
+- [ ] Migrate knowledge storage from SQLite to Supabase/pgvector end-to-end
+- [ ] Run and verify `supabase/schema.sql` against a live project under real data
+- [ ] End-to-end test of the live-feed → knowledge store → decision-agent pipeline
+- [x] Fixed previously broken `get_materials` Supabase branch
 
 ## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
 
-Fork the repository
-
-Create your feature branch (git checkout -b feature/AmazingFeature)
-
-Commit your changes (git commit -m 'Add some AmazingFeature')
-
-Push to the branch (git push origin feature/AmazingFeature)
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📧 Contact
-Kashaf Fatima - kash.fatima7@gmail.com
 
+- Personal Email — [kash.fatima7@gmail.com](mailto:kash.fatima7@gmail.com)
+- Company Email — [aioccuris@gmail.com](mailto:aioccuris@gmail.com)
+- Personal LinkedIn — [linkedin.com/in/kashaf-fatima-jaffri67](https://www.linkedin.com/in/kashaf-fatima-jaffri67/)
+- Company LinkedIn — [linkedin.com/company/occurisai](https://www.linkedin.com/company/occurisai)
