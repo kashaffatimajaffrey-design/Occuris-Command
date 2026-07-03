@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 httpx
 python-dotenv
 supabase
@@ -9,3 +9,14 @@ langgraph
 llama-index
 openai
 resend
+
+# Vector Databases & RAG
+pinecone-client
+chromadb
+llama-index-vector-stores-chroma
+llama-index-vector-stores-pinecone
+llama-index-embeddings-openai
+
+# Additional useful packages
+pydantic
+python-multipart

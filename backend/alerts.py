@@ -1,7 +1,6 @@
 from __future__ import annotations
-
 from typing import Any
-
+from datetime import datetime
 from fastapi import WebSocket
 
 
@@ -27,6 +26,16 @@ class AlertHub:
         for connection in stale:
             self.disconnect(connection)
 
+    # NEW: Risk Alert Broadcast
+    async def broadcast_risk_alert(self, risk_report: dict):
+        alert = {
+            "type": "risk_alert",
+            "timestamp": datetime.now().isoformat(),
+            "overall_risk_score": risk_report.get("overall_risk_score"),
+            "high_risk_components": [c["name"] for c in risk_report.get("components_at_risk", []) if c.get("score", 0) > 60],
+            "message": "High risk detected in supply chain components. Check Risk Dashboard."
+        }
+        await self.broadcast(alert)
+
 
 alert_hub = AlertHub()
-

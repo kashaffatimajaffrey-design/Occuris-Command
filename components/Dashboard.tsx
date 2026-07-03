@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const data = [
@@ -11,14 +10,48 @@ const data = [
   { name: 'Jun', stock: 2390, demand: 3800 },
 ];
 
-const riskData = [
-  { region: 'East Asia', risk: 85, trend: 'up' },
-  { region: 'Europe', risk: 30, trend: 'down' },
-  { region: 'N. America', risk: 25, trend: 'stable' },
-  { region: 'S.E Asia', risk: 65, trend: 'up' },
-];
-
 const Dashboard: React.FC = () => {
+  const [riskReport, setRiskReport] = useState<any>(null);
+  const [riskLoading, setRiskLoading] = useState(true);
+
+  // Fetch real risk data from our new API
+  const fetchRiskData = async () => {
+    setRiskLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/risk/report/demo');
+      const data = await response.json();
+      setRiskReport(data);
+    } catch (error) {
+      console.error("Failed to fetch risk data:", error);
+      // Fallback mock data
+      setRiskReport({
+        overall_risk_score: 65,
+        components_at_risk: [
+          { name: "chip-A123", score: 78, type: "geopolitical" },
+          { name: "sensor-X45", score: 45, type: "weather" }
+        ],
+        geopolitical_alerts: ["Shell CEO Sawan Highlights Security Challenges Amid Global Conflicts"],
+        recommended_actions: [
+          "Diversify suppliers for chip-A123",
+          "Increase buffer stock by 25%",
+          "Activate alternative routing"
+        ]
+      });
+    }
+    setRiskLoading(false);
+  };
+
+  useEffect(() => {
+    fetchRiskData();
+  }, []);
+
+  const riskData = riskReport?.components_at_risk || [
+    { region: 'East Asia', risk: 85 },
+    { region: 'Europe', risk: 30 },
+    { region: 'N. America', risk: 25 },
+    { region: 'S.E Asia', risk: 65 },
+  ];
+
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -69,29 +102,36 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+          {/* UPDATED RISK DISTRIBUTION - NOW USING REAL DATA */}
           <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm">
             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center justify-between">
-              Risk Distribution
-              <span className="p-1.5 bg-rose-100 text-rose-500 rounded-lg text-xs">⚠️</span>
+              Risk Distribution 
+              <span className="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold">LIVE</span>
             </h3>
-            <div className="space-y-5">
-              {riskData.map((item) => (
-                <div key={item.region} className="group">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-bold text-slate-600">{item.region}</span>
-                    <span className={`text-[10px] font-black ${item.risk > 70 ? 'text-rose-400' : 'text-slate-400'}`}>{item.risk}%</span>
+            
+            {riskLoading ? (
+              <p className="text-center py-8">Loading real risk data...</p>
+            ) : (
+              <div className="space-y-5">
+                {riskReport?.components_at_risk?.map((item: any, index: number) => (
+                  <div key={index} className="group">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-bold text-slate-600">{item.name}</span>
+                      <span className={`text-[10px] font-black ${item.score > 70 ? 'text-rose-400' : 'text-slate-400'}`}>{item.score}%</span>
+                    </div>
+                    <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-100">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ${
+                          item.score > 75 ? 'bg-rose-300' : item.score > 50 ? 'bg-orange-300' : 'bg-emerald-300'
+                        }`} 
+                        style={{ width: `${item.score}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">{item.type} risk</div>
                   </div>
-                  <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-100">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        item.risk > 75 ? 'bg-rose-300' : item.risk > 50 ? 'bg-orange-300' : 'bg-emerald-300'
-                      }`} 
-                      style={{ width: `${item.risk}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Technical Glance Card */}

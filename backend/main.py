@@ -15,6 +15,9 @@ from pydantic import BaseModel
 from scheduler import start_scheduler
 from store import create_bom, get_bom, init_db, list_boms
 
+# NEW IMPORTS FOR RISK PREDICTION
+from risk import router as risk_router
+from vector_stores import vector_manager  # This initializes Chroma + Pinecone
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -90,6 +93,8 @@ def startup() -> None:
     init_db()
     init_knowledge_db()
     start_scheduler()
+    # Initialize vector stores (Chroma + Pinecone)
+    print("Vector stores (ChromaDB + Pinecone) initialized")
 
 
 @app.get("/")
@@ -215,6 +220,10 @@ async def webhook_ingest(request: WebhookEventRequest):
 def decision_agent(request: AgentRequest):
     evidence = query_knowledge(request.tenant_id, request.question, 5)
     return run_decision_agent(request.question, evidence)
+
+
+# ============== NEW RISK PREDICTION ENDPOINTS ==============
+app.include_router(risk_router)
 
 
 @app.websocket("/ws/alerts/{tenant_id}")
