@@ -11,7 +11,7 @@ Occuris Command (formerly SemiChain AI) is a multi-agent platform for semiconduc
 
 [Watch on YouTube](https://youtu.be/dibV1tmRAR4)
 
-*(Demonstrates the currently-working local version — see status breakdown for what's changed since.)*
+*(Demonstrates the previously-working local version — will update status breakdown for what's changed since.)*
 
 ## ✅ Status Breakdown
 
