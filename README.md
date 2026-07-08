@@ -1,6 +1,5 @@
 # Occuris Command - Semiconductor Supply Chain Intelligence Platform (Formerly SemiChain AI)
 
-Formaly known as SemiChain AI
 
 ## 📋 Overview
 
