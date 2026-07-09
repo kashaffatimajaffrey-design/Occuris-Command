@@ -1,13 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   --font-sans: "Outfit", "Inter", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
+
   --bg-base: #010204;
   --bg-surface: #0a0b12;
   --bg-elevated: #111322;
+
   --accent-lavender: #C084FC;
   --accent-lavender-dim: #2E1065;
+  --accent-cyan: #4EE6FF;
+  --accent-amber: #FFB84D;
+
   --risk-high: #F43F5E;
   --risk-medium: #F59E0B;
   --risk-low: #10B981;
@@ -27,6 +33,17 @@ body {
   overflow-x: hidden;
 }
 
+/* ---------- Display typography for headers / panel titles ---------- */
+.occuris-app-shell h1,
+.occuris-app-shell h2,
+.occuris-app-shell h3,
+.occuris-app-shell .panel-title,
+.occuris-app-shell .occuris-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .occuris-app-shell {
   position: relative;
   isolation: isolate;
@@ -37,6 +54,7 @@ body {
     linear-gradient(145deg, #010204 0%, #070413 46%, #10051f 100%);
 }
 
+/* ---------- Living galaxy background ---------- */
 .occuris-live-bg {
   position: fixed;
   inset: 0;
@@ -52,26 +70,30 @@ body {
   inset: -20%;
 }
 
+/* Denser, layered starfield with color variety (was single-tone) */
 .occuris-live-bg::before {
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.94) 1px, transparent 1.6px),
-    radial-gradient(circle, rgba(192, 132, 252, 0.76) 1px, transparent 1.8px),
-    radial-gradient(circle, rgba(125, 211, 252, 0.52) 1px, transparent 1.7px);
-  background-size: 92px 92px, 148px 148px, 226px 226px;
-  background-position: 0 0, 42px 74px, 120px 20px;
-  opacity: 0.58;
-  animation: starfield-drift 220s linear infinite;
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(192, 132, 252, 0.85) 1px, transparent 1.8px),
+    radial-gradient(circle, rgba(78, 230, 255, 0.6) 1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255, 184, 77, 0.4) 1px, transparent 1.6px);
+  background-size: 84px 84px, 132px 132px, 200px 200px, 260px 260px;
+  background-position: 0 0, 38px 66px, 110px 18px, 60px 140px;
+  opacity: 0.68;
+  animation: starfield-drift 200s linear infinite;
 }
 
+/* Milky Way nebula band — a diagonal sweep of color instead of flat glow */
 .occuris-live-bg::after {
   background:
-    radial-gradient(ellipse at 20% 25%, rgba(192, 132, 252, 0.28), transparent 36%),
-    radial-gradient(ellipse at 78% 62%, rgba(46, 16, 101, 0.52), transparent 38%),
-    linear-gradient(115deg, transparent 0%, rgba(192, 132, 252, 0.06) 42%, transparent 58%);
-  filter: blur(8px);
+    radial-gradient(ellipse 70% 30% at 30% 20%, rgba(192, 132, 252, 0.30), transparent 55%),
+    radial-gradient(ellipse 60% 35% at 75% 55%, rgba(78, 230, 255, 0.14), transparent 55%),
+    radial-gradient(ellipse 65% 40% at 45% 85%, rgba(255, 184, 77, 0.10), transparent 55%),
+    linear-gradient(128deg, transparent 0%, rgba(192, 132, 252, 0.08) 38%, rgba(78, 230, 255, 0.05) 52%, transparent 68%);
+  filter: blur(10px);
   mix-blend-mode: screen;
-  opacity: 0.9;
-  animation: aurora-drift 18s ease-in-out infinite alternate;
+  opacity: 0.95;
+  animation: aurora-drift 22s ease-in-out infinite alternate;
 }
 
 .occuris-app-shell::after {
@@ -160,6 +182,52 @@ body {
   transform: translateY(-4px) scale(1.01);
 }
 
+/* ---------- Pronounced primary action buttons ---------- */
+.occuris-btn-primary {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent-lavender), #7C3AED);
+  box-shadow: 0 8px 30px rgba(192, 132, 252, 0.35);
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+}
+
+.occuris-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 38px rgba(192, 132, 252, 0.5);
+}
+
+.occuris-btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.occuris-btn-secondary {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(192, 132, 252, 0.25);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.occuris-btn-secondary:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(78, 230, 255, 0.06);
+  box-shadow: 0 0 20px rgba(78, 230, 255, 0.15);
+}
+
+/* Status / alert accents now use full palette, not lavender-only */
+.occuris-status-info { color: var(--accent-cyan); }
+.occuris-status-warn { color: var(--accent-amber); }
+.occuris-status-critical { color: var(--risk-high); }
+
 .cosmic-float-1 {
   animation: cosmic-float 7s ease-in-out infinite;
 }
@@ -192,11 +260,11 @@ body {
 
 @keyframes starfield-drift {
   from {
-    background-position: 0px 0px, 42px 74px, 120px 20px;
+    background-position: 0px 0px, 38px 66px, 110px 18px, 60px 140px;
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
   to {
-    background-position: 1000px 1000px, 840px 920px, 640px 760px;
+    background-position: 900px 900px, 760px 840px, 580px 700px, 460px 620px;
     transform: translate3d(-90px, -70px, 0) rotate(0.3deg);
   }
 }
@@ -204,15 +272,15 @@ body {
 @keyframes aurora-drift {
   0% {
     transform: translate3d(-2%, -1%, 0) scale(1);
-    opacity: 0.74;
+    opacity: 0.78;
   }
   50% {
-    transform: translate3d(2%, 2%, 0) scale(1.04);
+    transform: translate3d(2%, 2%, 0) scale(1.05);
     opacity: 1;
   }
   100% {
     transform: translate3d(4%, -2%, 0) scale(1.02);
-    opacity: 0.82;
+    opacity: 0.85;
   }
 }
 
@@ -223,4 +291,191 @@ body {
   50% {
     transform: translateY(-8px) rotate(0.4deg);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .occuris-live-bg::before,
+  .occuris-live-bg::after,
+  .cosmic-float-1,
+  .cosmic-float-2,
+  .cosmic-float-3 {
+    animation: none;
+  }
+}
+/* ============================================================
+   INFINITE MARQUEE — GoDaddy-style continuous horizontal scroll
+   ============================================================
+   Usage:
+   <div class="occuris-marquee">
+     <div class="occuris-marquee-track">
+       <div class="occuris-marquee-card">...</div>
+       <div class="occuris-marquee-card">...</div>
+       ... (repeat the SAME set of cards twice, back to back,
+            so the loop is seamless — see note below)
+     </div>
+   </div>
+*/
+
+.occuris-marquee {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 5%,
+    #000 95%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 5%,
+    #000 95%,
+    transparent 100%
+  );
+}
+
+.occuris-marquee-track {
+  display: flex;
+  gap: 1.25rem;
+  width: max-content;
+  animation: occuris-marquee-scroll 40s linear infinite;
+}
+
+/* Pause on hover so users can actually read/click a card */
+.occuris-marquee:hover .occuris-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes occuris-marquee-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  /* -50% works because the track contains the card set duplicated twice */
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .occuris-marquee-track {
+    animation: none;
+    overflow-x: auto;
+  }
+}
+
+/* ============================================================
+   NETFLIX-STYLE HOVER CARD — flat until hovered, then lifts
+   and scales, revealing extra detail
+   ============================================================
+   Usage:
+   <div class="occuris-marquee-card">
+     <div class="occuris-card-media">...</div>
+     <div class="occuris-card-reveal">
+       <h4>Title</h4>
+       <p>Extra detail shown only on hover</p>
+     </div>
+   </div>
+*/
+
+.occuris-marquee-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 220px;
+  height: 130px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(10, 11, 25, 0.65);
+  border: 1px solid rgba(192, 132, 252, 0.18);
+  cursor: pointer;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease,
+    z-index 0s;
+}
+
+.occuris-marquee-card:hover {
+  transform: scale(1.12) translateY(-6px);
+  z-index: 5;
+  border-color: rgba(192, 132, 252, 0.55);
+  box-shadow:
+    0 20px 45px -12px rgba(0, 0, 0, 0.85),
+    0 0 30px rgba(192, 132, 252, 0.25);
+}
+
+.occuris-card-media {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: filter 0.35s ease;
+}
+
+.occuris-marquee-card:hover .occuris-card-media {
+  filter: brightness(0.55);
+}
+
+.occuris-card-reveal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0.85rem;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  pointer-events: none;
+}
+
+.occuris-marquee-card:hover .occuris-card-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.occuris-card-reveal h4 {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-display, "Bricolage Grotesque", sans-serif);
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.occuris-card-reveal p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #C4B8DE;
+  line-height: 1.35;
+}
+
+/* ============================================================
+   ROW ARROW CONTROLS — manual left/right nav (Netflix-style)
+   ============================================================
+   Usage: place two buttons absolutely inside a position:relative
+   wrapper around .occuris-marquee, wired to scroll the track
+   via a ref in your React component (JS scroll, not CSS).
+*/
+
+.occuris-row-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to right, rgba(1, 2, 4, 0.9), transparent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.occuris-marquee-wrap:hover .occuris-row-arrow {
+  opacity: 1;
+}
+
+.occuris-row-arrow.right {
+  right: 0;
+  left: auto;
+  background: linear-gradient(to left, rgba(1, 2, 4, 0.9), transparent);
 }
