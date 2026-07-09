@@ -1,28 +1,33 @@
-import React, { createContext, useState, useContext } from 'react';
-import { TENANTS } from '../constants';
+import { useAuth } from './AuthContext';
 import { Tenant } from '../types';
 
-interface TenantContextType {
-  selectedTenant: Tenant;
-  setSelectedTenant: (tenant: Tenant) => void;
-}
-
-const TenantContext = createContext<TenantContextType | undefined>(undefined);
-
-export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [selectedTenant, setSelectedTenant] = useState<Tenant>(TENANTS[0]);
-
-  return (
-    <TenantContext.Provider value={{ selectedTenant, setSelectedTenant }}>
-      {children}
-    </TenantContext.Provider>
-  );
-}
-
+/**
+ * COMPATIBILITY LAYER
+ *
+ * This used to be a standalone context with its own Provider and a
+ * hardcoded tenant list. It's been replaced by real auth (AuthContext),
+ * where the tenant is derived from the logged-in user's session —
+ * not picked from a dropdown.
+ *
+ * Rather than editing every component that called useTenant()
+ * (BomIntake, CommandDeck, InventoryTable), this file keeps the same
+ * useTenant() interface they already expect, but sources the data
+ * from AuthContext underneath. No <TenantProvider> wrapper needed
+ * anymore — this hook works directly off <AuthProvider>.
+ */
 export function useTenant() {
-  const context = useContext(TenantContext);
-  if (!context) {
-    throw new Error('useTenant must be used within TenantProvider');
-  }
-  return context;
+  const { tenantId, tenantName } = useAuth();
+
+  const selectedTenant: Tenant = {
+    id: tenantId || '',
+    name: tenantName || 'Loading...',
+    region: '',
+  };
+
+  return {
+    selectedTenant,
+    // No-op: which tenant you're in is now determined by who you're
+    // logged in as, not something the UI lets you switch client-side.
+    setSelectedTenant: () => {},
+  };
 }

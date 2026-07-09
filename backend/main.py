@@ -18,6 +18,8 @@ from store import create_bom, get_bom, init_db, list_boms
 # NEW IMPORTS FOR RISK PREDICTION
 from risk import router as risk_router
 from vector_stores import vector_manager  # This initializes Chroma + Pinecone
+from sap_routes import router as sap_router
+from onboarding_routes import router as onboarding_router
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -224,6 +226,8 @@ def decision_agent(request: AgentRequest):
 
 # ============== NEW RISK PREDICTION ENDPOINTS ==============
 app.include_router(risk_router)
+app.include_router(sap_router)
+app.include_router(onboarding_router)
 
 
 @app.websocket("/ws/alerts/{tenant_id}")

@@ -1,11 +1,11 @@
-
 import React from 'react';
-import { useTenant } from '../contexts/TenantContext';
-import { TENANTS } from '../constants';
 
-const Header: React.FC = () => {
-  const { selectedTenant, setSelectedTenant } = useTenant();
+interface HeaderProps {
+  tenantName: string | null;
+  onSignOut: () => void;
+}
 
+const Header: React.FC<HeaderProps> = ({ tenantName, onSignOut }) => {
   return (
     <header className="relative z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.45)]">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -18,26 +18,13 @@ const Header: React.FC = () => {
           <span className="ml-2 font-bold text-white">Occuris Command</span>
         </div>
 
-        <div className="hidden md:flex items-center space-x-4">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Target Tenant</label>
-          <div className="relative">
-            <select
-              value={selectedTenant.id}
-              onChange={(e) => {
-                const tenant = TENANTS.find(t => t.id === e.target.value);
-                if (tenant) setSelectedTenant(tenant);
-              }}
-              className="appearance-none bg-slate-950/90 border border-[#C084FC]/25 rounded-lg px-4 py-1.5 pr-8 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#C084FC]/30"
-            >
-              {TENANTS.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.region})</option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </div>
+        {/* Tenant switching dropdown removed — a logged-in user belongs to
+            exactly ONE tenant now (resolved from their session), so we just
+            display it. No dropdown, no picking someone else's data. */}
+        <div className="hidden md:flex items-center space-x-3">
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Workspace</label>
+          <div className="px-4 py-1.5 rounded-lg bg-slate-950/90 border border-[#C084FC]/25 text-sm font-bold text-white">
+            {tenantName || 'Loading...'}
           </div>
         </div>
 
@@ -49,7 +36,11 @@ const Header: React.FC = () => {
             </svg>
           </button>
           <div className="h-8 w-px bg-white/10"></div>
-          <button className="flex items-center gap-2 hover:bg-white/[0.04] p-1 rounded-lg transition-colors">
+          <button
+            onClick={onSignOut}
+            title="Sign out"
+            className="flex items-center gap-2 hover:bg-white/[0.04] p-1 rounded-lg transition-colors"
+          >
             <div className="w-8 h-8 rounded bg-[#C084FC]/20 border border-[#C084FC]/30 flex items-center justify-center text-[#C084FC] font-black">OC</div>
           </button>
         </div>
