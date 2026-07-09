@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { Tenant } from '../types';
 
@@ -9,25 +10,27 @@ import { Tenant } from '../types';
  * where the tenant is derived from the logged-in user's session —
  * not picked from a dropdown.
  *
- * Rather than editing every component that called useTenant()
- * (BomIntake, CommandDeck, InventoryTable), this file keeps the same
- * useTenant() interface they already expect, but sources the data
- * from AuthContext underneath. No <TenantProvider> wrapper needed
- * anymore — this hook works directly off <AuthProvider>.
+ * IMPORTANT: selectedTenant is wrapped in useMemo so it keeps the SAME
+ * object reference across re-renders as long as tenantId/tenantName
+ * haven't actually changed. Without this, components that do
+ * useEffect(() => {...}, [selectedTenant]) (like InventoryTable) would
+ * see a "new" tenant object on every render and re-fetch forever —
+ * which is exactly what caused the ERR_INSUFFICIENT_RESOURCES crash.
  */
 export function useTenant() {
   const { tenantId, tenantName } = useAuth();
 
-  const selectedTenant: Tenant = {
-    id: tenantId || '',
-    name: tenantName || 'Loading...',
-    region: '',
-  };
+  const selectedTenant: Tenant = useMemo(
+    () => ({
+      id: tenantId || '',
+      name: tenantName || 'Loading...',
+      region: '',
+    }),
+    [tenantId, tenantName]
+  );
 
   return {
     selectedTenant,
-    // No-op: which tenant you're in is now determined by who you're
-    // logged in as, not something the UI lets you switch client-side.
     setSelectedTenant: () => {},
   };
 }
