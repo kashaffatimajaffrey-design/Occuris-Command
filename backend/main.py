@@ -132,16 +132,19 @@ def post_bom(request: BomCreateRequest):
 
 @app.get("/api/materials/{tenant_id}")
 async def get_materials(tenant_id: str):
+    # No mock fallback. If the datastore is unavailable or the query fails,
+    # the caller is told so — an empty list must only ever mean "no materials".
     if not supabase:
-        return get_mock_materials(tenant_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Supabase is not configured. Set SUPABASE_URL and SUPABASE_KEY in backend/.env.",
+        )
     try:
         response = supabase.table("sap_materials").select("*").eq("tenant_id", tenant_id).execute()
-        if hasattr(response, "data"):
-            return response.data
-        return []
     except Exception as exc:
-        print(f"Material lookup failed: {exc}")
-        return get_mock_materials(tenant_id)
+        raise HTTPException(status_code=502, detail=f"Material lookup failed: {exc}") from exc
+
+    return getattr(response, "data", [])
 
 
 @app.post("/api/specmatch")
@@ -294,23 +297,3 @@ async def chat(request: ChatRequest):
             return {"text": parts[0].get("text", "Empty response text")}
     except Exception as exc:
         return {"text": f"Error: {str(exc)}"}
-
-
-def get_mock_materials(tenant_id: str):
-    mock_data = {
-        "global-semi-01": [
-            {"matnr": "MAT-7701", "name": "ASML NXE:3400C Mask", "category": "Lithography", "stock_level": 4, "safety_stock": 2, "lead_time": 180, "supplier": "ASML", "abc_class": "A", "unit": "Units"},
-            {"matnr": "MAT-1205", "name": "EUV Photoresist (Type-B)", "category": "Chemicals", "stock_level": 850, "safety_stock": 200, "lead_time": 30, "supplier": "JSR Corp", "abc_class": "A", "unit": "Liters"},
-            {"matnr": "MAT-9920", "name": "Silicon Wafer 300mm", "category": "Substrate", "stock_level": 5400, "safety_stock": 1000, "lead_time": 45, "supplier": "Sumco", "abc_class": "B", "unit": "Wafers"},
-        ],
-        "litho-tech-solutions": [
-            {"matnr": "MAT-4412", "name": "Palladium Sputtering Target", "category": "Metals", "stock_level": 12, "safety_stock": 5, "lead_time": 90, "supplier": "Heraeus", "abc_class": "A", "unit": "Kg"},
-        ],
-        "nano-foundry-ops": [
-            {"matnr": "MAT-3301", "name": "HBM3 Memory Die (8GB)", "category": "Component", "stock_level": 12000, "safety_stock": 3000, "lead_time": 60, "supplier": "SK Hynix", "abc_class": "A", "unit": "Die"},
-        ],
-    }
-    return mock_data.get(tenant_id, [])
-
-
-print("Occuris Command server startup complete.")

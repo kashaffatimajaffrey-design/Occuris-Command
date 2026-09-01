@@ -12,8 +12,8 @@ rest of the app never has to think about SAP's naming again.
 def map_sap_material_to_internal(sap_item: dict, tenant_id: str) -> dict:
     """
     Takes one raw SAP material record and converts it into the EXACT
-    shape the `sap_materials` Supabase table already expects (this
-    matches the fields used in main.py's get_mock_materials fallback).
+    shape the `sap_materials` Supabase table already expects, which is
+    what /api/materials/{tenant_id} reads back out.
     """
     return {
         "tenant_id": tenant_id,

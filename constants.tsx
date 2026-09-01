@@ -1,5 +1,5 @@
 
-import { AgentConfig, AgentType, SAPMaterial, Tenant } from './types';
+import { AgentConfig, AgentType, Tenant } from './types';
 
 export const AGENTS: AgentConfig[] = [
   {
@@ -43,19 +43,3 @@ export const TENANTS: Tenant[] = [
   { id: 'nano-foundry-ops', name: 'NanoFoundry Operations', region: 'APAC-South' }
 ];
 
-export const MOCK_SAP_DATA: SAPMaterial[] = [
-  { id: 'MAT-7701', name: 'ASML NXE:3400C Mask', category: 'Lithography', stockLevel: 4, safetyStock: 2, leadTime: 180, supplier: 'ASML', abcClass: 'A', unit: 'Units' },
-  { id: 'MAT-1205', name: 'EUV Photoresist (Type-B)', category: 'Chemicals', stockLevel: 850, safetyStock: 200, leadTime: 30, supplier: 'JSR Corp', abcClass: 'A', unit: 'Liters' },
-  { id: 'MAT-9920', name: 'Silicon Wafer 300mm', category: 'Substrate', stockLevel: 5400, safetyStock: 1000, leadTime: 45, supplier: 'Sumco', abcClass: 'B', unit: 'Wafers' },
-  { id: 'MAT-4412', name: 'Palladium Sputtering Target', category: 'Metals', stockLevel: 12, safetyStock: 5, leadTime: 90, supplier: 'Heraeus', abcClass: 'A', unit: 'Kg' },
-  { id: 'MAT-3301', name: 'HBM3 Memory Die (8GB)', category: 'Component', stockLevel: 12000, safetyStock: 3000, leadTime: 60, supplier: 'SK Hynix', abcClass: 'A', unit: 'Die' }
-];
-
-export const SYSTEM_NODES = [
-  { id: 'worker-01', cpu: 45, mem: 62, status: 'Healthy', podCount: 12 },
-  { id: 'worker-02', cpu: 88, mem: 75, status: 'Busy', podCount: 24 },
-  { id: 'worker-03', cpu: 12, mem: 30, status: 'Healthy', podCount: 4 },
-  { id: 'worker-04', cpu: 55, mem: 58, status: 'Healthy', podCount: 15 },
-  { id: 'vector-01', cpu: 92, mem: 94, status: 'Optimization', podCount: 8 },
-  { id: 'gpu-node-01', cpu: 22, mem: 40, status: 'Active', podCount: 2 },
-];

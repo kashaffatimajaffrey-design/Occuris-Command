@@ -9,8 +9,6 @@ import BomIntake from './components/BomIntake';
 import CommandDeck from './components/CommandDeck';
 import InventoryTable from './components/InventoryTable';
 import Analytics from './components/Analytics';
-import VectorLabs from './components/VectorLabs';
-import Monitoring from './components/Monitoring';
 import Login from './components/Login';
 import CompleteOnboarding from './components/CompleteOnboarding';
 
@@ -52,8 +50,9 @@ const ProtectedShell: React.FC = () => {
             <Route path="/agents" element={<AgentChat />} />
             <Route path="/inventory" element={<InventoryTable />} />
             <Route path="/analytics" element={<Analytics />} />
-            <Route path="/vector-labs" element={<VectorLabs />} />
-            <Route path="/monitoring" element={<Monitoring />} />
+            {/* Removed routes (/vector-labs, /monitoring) and any other unknown
+                path land on the Command Deck rather than an empty shell. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>

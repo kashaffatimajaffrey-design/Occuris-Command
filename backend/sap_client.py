@@ -2,10 +2,8 @@
 sap_client.py
 
 This file connects to a REAL SAP system using its OData API.
-It will only be used once we have real SAP credentials from a client
-(SAP_USE_MOCK=false in .env).
-
-Nothing here runs unless a real pilot customer gives us access.
+This is the only path to SAP material data. It requires real credentials
+from a client; there is no mock alternative.
 """
 
 import httpx
@@ -24,8 +22,7 @@ async def fetch_sap_materials():
     if not SAP_BASE_URL or not SAP_USERNAME or not SAP_PASSWORD:
         raise ValueError(
             "Missing SAP credentials in .env. "
-            "Set SAP_ODATA_URL, SAP_USERNAME, SAP_PASSWORD, "
-            "or set SAP_USE_MOCK=true to use mock data instead."
+            "Set SAP_ODATA_URL, SAP_USERNAME, SAP_PASSWORD."
         )
 
     async with httpx.AsyncClient(timeout=30.0) as client:

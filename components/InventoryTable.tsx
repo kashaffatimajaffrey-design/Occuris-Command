@@ -6,21 +6,25 @@ const InventoryTable: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { selectedTenant } = useTenant(); // Get current tenant from context
 
   useEffect(() => {
     async function loadMaterials() {
       setLoading(true);
+      setError(null);
       try {
         const data = await getMaterials(selectedTenant.id);
         setMaterials(data);
-      } catch (error) {
-        console.error('Failed to load materials:', error);
+      } catch (err) {
+        // A failed load must not render as "0 materials".
+        setMaterials([]);
+        setError(err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
       }
     }
-    
+
     loadMaterials();
   }, [selectedTenant]); // Reload when tenant changes
 
@@ -35,7 +39,8 @@ const InventoryTable: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">S/4HANA Master Data</h1>
           <p className="text-slate-400 text-sm font-medium">
-            {selectedTenant.name} • {materials.length} materials
+            {selectedTenant.name}
+            {!loading && !error && ` • ${materials.length} materials`}
           </p>
         </div>
         <div className="relative">
@@ -53,7 +58,12 @@ const InventoryTable: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-indigo-50 shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-12 text-center">
+            <div className="text-sm font-black text-rose-700 mb-2">Could not load materials</div>
+            <div className="text-xs font-mono text-rose-600 break-words max-w-lg mx-auto">{error}</div>
+          </div>
+        ) : loading ? (
           <div className="p-12 text-center">
             <div className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
             <p className="mt-4 text-sm text-slate-400">Loading materials...</p>
