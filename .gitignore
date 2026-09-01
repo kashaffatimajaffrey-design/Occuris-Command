@@ -29,3 +29,7 @@ backend/__pycache__/
 *.njsproj
 *.sln
 *.sw?
+
+# local vector store artifacts
+backend/chroma_db/
+__pycache__/

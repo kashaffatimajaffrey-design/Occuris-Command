@@ -1,21 +1,14 @@
 fastapi
 uvicorn[standard]
 httpx
+requests
 python-dotenv
 supabase
 apscheduler
 langchain
 langgraph
-llama-index
 openai
 resend
-
-# Vector Databases & RAG
-pinecone-client
-chromadb
-llama-index-vector-stores-chroma
-llama-index-vector-stores-pinecone
-llama-index-embeddings-openai
 
 # Additional useful packages
 pydantic

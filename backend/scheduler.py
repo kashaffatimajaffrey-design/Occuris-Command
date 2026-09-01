@@ -29,7 +29,7 @@ async def daily_risk_check() -> None:
         report = await get_risk_report("demo")
         if report.get("overall_risk_score", 0) > 60:
             await alert_hub.broadcast_risk_alert(report)
-            print("🚨 High Risk Alert Broadcasted via WebSocket")
+            print("High risk alert broadcast via WebSocket")
         else:
             print("Risk check completed - Risk level normal")
     except Exception as e:

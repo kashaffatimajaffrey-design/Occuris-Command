@@ -17,7 +17,6 @@ from store import create_bom, get_bom, init_db, list_boms
 
 # NEW IMPORTS FOR RISK PREDICTION
 from risk import router as risk_router
-from vector_stores import vector_manager  # This initializes Chroma + Pinecone
 from sap_routes import router as sap_router
 from onboarding_routes import router as onboarding_router
 
@@ -95,8 +94,6 @@ def startup() -> None:
     init_db()
     init_knowledge_db()
     start_scheduler()
-    # Initialize vector stores (Chroma + Pinecone)
-    print("Vector stores (ChromaDB + Pinecone) initialized")
 
 
 @app.get("/")

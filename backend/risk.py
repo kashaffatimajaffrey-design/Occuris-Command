@@ -2,9 +2,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 import requests
 import os
-from datetime import datetime
-from vector_stores import vector_manager
-from llama_index.core import Document
 
 router = APIRouter(prefix="/api/risk", tags=["risk"])
 
@@ -17,9 +14,6 @@ class RiskReport(BaseModel):
 
 @router.get("/report/{tenant_id}")
 async def get_risk_report(tenant_id: str = "demo"):
-    chroma_index = vector_manager.get_chroma_index()
-    pinecone_index = vector_manager.get_pinecone_index()
-
     # Fetch real news
     try:
         news_resp = requests.get(
@@ -30,31 +24,11 @@ async def get_risk_report(tenant_id: str = "demo"):
         news_title = articles[0].get("title", "No recent news") if articles else "No recent news"
         news_content = articles[0].get("description", "") if articles else ""
         
-        print(f"✅ Fetched latest news: {news_title[:100]}...")
+        print(f"Fetched latest news: {news_title[:100]}...")
     except Exception as e:
         print("NewsAPI error:", e)
         news_title = "News API not available"
         news_content = ""
-
-    # Save to vector stores
-    try:
-        document_text = f"Geopolitical Risk Alert: {news_title}. {news_content}"
-        
-        doc = Document(
-            text=document_text,
-            metadata={
-                "type": "geopolitical",
-                "source": "newsapi",
-                "timestamp": datetime.now().isoformat()
-            }
-        )
-
-        chroma_index.insert(doc)
-        pinecone_index.insert(doc)
-        
-        print("✅ Risk data successfully saved to ChromaDB and Pinecone")
-    except Exception as e:
-        print("Vector store save failed:", str(e))
 
     components = [
         {"name": "chip-A123", "score": 78, "type": "geopolitical"},
