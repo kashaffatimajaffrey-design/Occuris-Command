@@ -1,5 +1,10 @@
 /**
- * Client for the occuralog API (default http://localhost:8010).
+ * Client for occuralog, reached through the Command backend.
+ *
+ * These calls go to /api/occuralog/* on the Command backend, not to occuralog
+ * directly. occuralog has no auth of its own — hitting port 8010 from the
+ * browser left the ingestion API open to anyone who could route to it. The
+ * backend proxy requires a verified session and forwards from there.
  *
  * Every type below was written from an actual response captured from a running
  * server, not from a specification. If the API changes, these change with it.
@@ -8,8 +13,31 @@
  * call must reach the UI as a failure.
  */
 
-const OCCURALOG_BASE =
-  import.meta.env.VITE_OCCURALOG_URL || 'http://localhost:8010';
+import { supabase } from './supabaseClient';
+
+export class OccuralogError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = 'OccuralogError';
+  }
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const OCCURALOG_PREFIX = '/api/occuralog';
+
+/**
+ * The caller's bearer token. Every proxied route is authenticated, so a
+ * missing session is a failure here rather than an unauthenticated request
+ * that comes back as a confusing 401.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new OccuralogError('Not signed in. Sign in to load ingestion sessions.', 401);
+  }
+  return { Authorization: `Bearer ${token}` };
+}
 
 // ---------------------------------------------------------------------------
 // Attribution
@@ -122,13 +150,6 @@ export interface OrdersResponse {
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
-export class OccuralogError extends Error {
-  constructor(message: string, readonly status?: number) {
-    super(message);
-    this.name = 'OccuralogError';
-  }
-}
-
 async function failure(response: Response, action: string): Promise<OccuralogError> {
   let detail = '';
   try {
@@ -145,12 +166,13 @@ async function failure(response: Response, action: string): Promise<OccuralogErr
 }
 
 async function get<T>(path: string, action: string): Promise<T> {
+  const headers = await authHeaders();
   let response: Response;
   try {
-    response = await fetch(`${OCCURALOG_BASE}${path}`);
+    response = await fetch(`${API_BASE}${OCCURALOG_PREFIX}${path}`, { headers });
   } catch (err) {
     throw new OccuralogError(
-      `${action} failed: could not reach occuralog at ${OCCURALOG_BASE}. ` +
+      `${action} failed: could not reach the Command backend at ${API_BASE}. ` +
         `Is it running? (${err instanceof Error ? err.message : String(err)})`
     );
   }
@@ -162,19 +184,24 @@ async function get<T>(path: string, action: string): Promise<T> {
 // Endpoints
 // ---------------------------------------------------------------------------
 export function occuralogBaseUrl(): string {
-  return OCCURALOG_BASE;
+  return `${API_BASE}${OCCURALOG_PREFIX}`;
 }
 
 export async function ingestExport(file: File): Promise<Session> {
+  const headers = await authHeaders();
   const form = new FormData();
   form.append('file', file);
 
   let response: Response;
   try {
-    response = await fetch(`${OCCURALOG_BASE}/sessions`, { method: 'POST', body: form });
+    response = await fetch(`${API_BASE}${OCCURALOG_PREFIX}/sessions`, {
+      method: 'POST',
+      body: form,
+      headers,
+    });
   } catch (err) {
     throw new OccuralogError(
-      `Upload failed: could not reach occuralog at ${OCCURALOG_BASE}. ` +
+      `Upload failed: could not reach the Command backend at ${API_BASE}. ` +
         `Is it running? (${err instanceof Error ? err.message : String(err)})`
     );
   }

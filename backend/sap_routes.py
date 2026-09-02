@@ -1,8 +1,11 @@
 """
 sap_routes.py
 
-Exposes SAP material data, writing into the same `sap_materials` Supabase
-table that /api/materials/{tenant_id} reads from.
+Exposes SAP material data, writing into a `sap_materials` Supabase table.
+
+Nothing reads that table. /api/materials, its only reader, was deleted because
+it was the last remnant of the mock-data path and the table does not exist in
+the database.
 
   GET  /api/sap/materials   -> preview mapped data, do not save
   POST /api/sap/sync        -> fetch AND upsert into Supabase
@@ -70,8 +73,7 @@ async def get_sap_materials(tenant_id: str = Depends(get_current_tenant)):
 @router.post("/api/sap/sync")
 async def sync_sap_materials(tenant_id: str = Depends(get_current_tenant)):
     """
-    Fetch materials from SAP and upsert them into the `sap_materials` table
-    that /api/materials/{tenant_id} reads from.
+    Fetch materials from SAP and upsert them into the `sap_materials` table.
     """
     if not is_configured():
         raise HTTPException(status_code=UNCONFIGURED_STATUS, detail=_unconfigured_detail())

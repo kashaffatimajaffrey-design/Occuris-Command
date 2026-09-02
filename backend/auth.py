@@ -23,8 +23,8 @@ async def get_current_tenant(authorization: str = Header(None)) -> str:
     """
     Use as a FastAPI dependency:
 
-        @app.get("/api/materials")
-        async def get_materials(tenant_id: str = Depends(get_current_tenant)):
+        @app.get("/api/occuralog/sessions")
+        def list_sessions(tenant_id: str = Depends(get_current_tenant)):
             ...
 
     Raises 401 if there's no valid, logged-in user.

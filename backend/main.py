@@ -3,7 +3,6 @@ import os
 
 from agents import run_decision_agent
 from alerts import alert_hub
-from database import supabase
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +18,7 @@ from store import create_bom, get_bom, init_db, list_boms
 from risk import router as risk_router
 from sap_routes import router as sap_router
 from onboarding_routes import router as onboarding_router
+from occuralog_routes import router as occuralog_router
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -131,23 +131,6 @@ def post_bom(request: BomCreateRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.get("/api/materials/{tenant_id}")
-async def get_materials(tenant_id: str):
-    # No mock fallback. If the datastore is unavailable or the query fails,
-    # the caller is told so — an empty list must only ever mean "no materials".
-    if not supabase:
-        raise HTTPException(
-            status_code=503,
-            detail="Supabase is not configured. Set SUPABASE_URL and SUPABASE_KEY in backend/.env.",
-        )
-    try:
-        response = supabase.table("sap_materials").select("*").eq("tenant_id", tenant_id).execute()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Material lookup failed: {exc}") from exc
-
-    return getattr(response, "data", [])
-
-
 @app.post("/api/specmatch")
 def post_specmatch(request: SpecMatchRequest):
     return specmatch(request.mpn)
@@ -232,6 +215,7 @@ def decision_agent(request: AgentRequest):
 app.include_router(risk_router)
 app.include_router(sap_router)
 app.include_router(onboarding_router)
+app.include_router(occuralog_router)
 
 
 @app.websocket("/ws/alerts/{tenant_id}")
