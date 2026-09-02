@@ -1,14 +1,15 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SessionProvider } from './contexts/SessionContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import AgentChat from './components/AgentChat';
 import BomIntake from './components/BomIntake';
 import CommandDeck from './components/CommandDeck';
-import InventoryTable from './components/InventoryTable';
 import Analytics from './components/Analytics';
+import Orders from './components/Orders';
 import Login from './components/Login';
 import CompleteOnboarding from './components/CompleteOnboarding';
 
@@ -48,7 +49,7 @@ const ProtectedShell: React.FC = () => {
             <Route path="/command" element={<CommandDeck />} />
             <Route path="/bom-intake" element={<BomIntake />} />
             <Route path="/agents" element={<AgentChat />} />
-            <Route path="/inventory" element={<InventoryTable />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/analytics" element={<Analytics />} />
             {/* Removed routes (/vector-labs, /monitoring) and any other unknown
                 path land on the Command Deck rather than an empty shell. */}
@@ -63,12 +64,14 @@ const ProtectedShell: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <SessionProvider>
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/*" element={<ProtectedShell />} />
         </Routes>
       </Router>
+      </SessionProvider>
     </AuthProvider>
   );
 };
