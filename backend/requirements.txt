@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 httpx
 requests
-anthropic
+anthropic>=1.3.0
 python-dotenv
 supabase
 apscheduler

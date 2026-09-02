@@ -1,3 +1,14 @@
+-- SUPERSEDED - DO NOT RUN.
+--
+-- This file models organizations / organization_members / boms / knowledge_*,
+-- none of which any code in this repository queries. The application uses
+-- `tenants`, `profiles` and `sap_materials`. It also enables row level
+-- security on all eight tables and defines no policies, which denies every
+-- read to the anon and authenticated roles silently.
+--
+-- The live auth schema is supabase/migrations/0001_tenants_profiles.sql.
+-- The event/order model is designed in C3.
+
 create extension if not exists vector;
 
 create table if not exists organizations (
