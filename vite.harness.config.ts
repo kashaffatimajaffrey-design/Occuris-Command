@@ -20,6 +20,18 @@ export default defineConfig(({ mode }) => {
           find: /^\.\.\/contexts\/TenantContext$/,
           replacement: path.resolve(__dirname, 'harness/TenantStub.tsx'),
         },
+        {
+          find: /^\.\.\/contexts\/SessionContext$/,
+          replacement: path.resolve(__dirname, 'harness/SessionStub.tsx'),
+        },
+        {
+          find: /^\.\.\/services\/occuralog$/,
+          replacement: path.resolve(__dirname, 'harness/occuralogStub.ts'),
+        },
+        {
+          find: /^\.\.\/services\/llmService$/,
+          replacement: path.resolve(__dirname, 'harness/llmStub.ts'),
+        },
       ],
     },
   };

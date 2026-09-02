@@ -1,0 +1,177 @@
+{
+  "order_no": "3500",
+  "event_count": 6,
+  "inferred_event_count": 0,
+  "last_activity": "2024-07-19T08:30:00",
+  "open_delay": false,
+  "open_delay_including_inferred": false,
+  "includes_inferred": false,
+  "timeline": [
+    {
+      "timestamp": "2024-05-20T08:00:00",
+      "timestamp_raw": "5/20/2024 8:00 AM",
+      "sender": "Farhan Malik",
+      "text": "naya order aaya hai. order 3500. client: Fauji Cement. structural steel 45 ton",
+      "event_types": [
+        "vendor_event"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    },
+    {
+      "timestamp": "2024-06-03T09:00:00",
+      "timestamp_raw": "6/3/2024 9:00 AM",
+      "sender": "Ahmed Raza",
+      "text": "order 3500 — material aa gaya. cutting start ho gayi",
+      "event_types": [
+        "dispatch_confirmation"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    },
+    {
+      "timestamp": "2024-06-17T15:30:00",
+      "timestamp_raw": "6/17/2024 3:30 PM",
+      "sender": "Zubair Khan",
+      "text": "order 3500 fabrication 60% complete",
+      "event_types": [
+        "production_status"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    },
+    {
+      "timestamp": "2024-07-01T08:30:00",
+      "timestamp_raw": "7/1/2024 8:30 AM",
+      "sender": "Tariq Usman",
+      "text": "order 3500 kab complete hoga? Fauji wale pressure de rahe hain",
+      "event_types": [
+        "production_status"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    },
+    {
+      "timestamp": "2024-07-14T17:00:00",
+      "timestamp_raw": "7/14/2024 5:00 PM",
+      "sender": "Zubair Khan",
+      "text": "order 3500 fabrication complete ✅",
+      "event_types": [
+        "production_status"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    },
+    {
+      "timestamp": "2024-07-19T08:30:00",
+      "timestamp_raw": "7/19/2024 8:30 AM",
+      "sender": "Farhan Malik",
+      "text": "order 3500 dispatch ho gaya. tracking number share karta hun",
+      "event_types": [
+        "dispatch_confirmation"
+      ],
+      "order_numbers": [
+        "3500"
+      ],
+      "classified": true,
+      "needs_llm_review": false,
+      "source": "whatsapp_export",
+      "attribution": "explicit"
+    }
+  ],
+  "citations": [
+    {
+      "n": 1,
+      "sender": "Farhan Malik",
+      "timestamp": "2024-05-20T08:00:00",
+      "timestamp_raw": "5/20/2024 8:00 AM",
+      "text": "naya order aaya hai. order 3500. client: Fauji Cement. structural steel 45 ton",
+      "event_types": [
+        "vendor_event"
+      ],
+      "attribution": "explicit"
+    },
+    {
+      "n": 2,
+      "sender": "Ahmed Raza",
+      "timestamp": "2024-06-03T09:00:00",
+      "timestamp_raw": "6/3/2024 9:00 AM",
+      "text": "order 3500 — material aa gaya. cutting start ho gayi",
+      "event_types": [
+        "dispatch_confirmation"
+      ],
+      "attribution": "explicit"
+    },
+    {
+      "n": 3,
+      "sender": "Zubair Khan",
+      "timestamp": "2024-06-17T15:30:00",
+      "timestamp_raw": "6/17/2024 3:30 PM",
+      "text": "order 3500 fabrication 60% complete",
+      "event_types": [
+        "production_status"
+      ],
+      "attribution": "explicit"
+    },
+    {
+      "n": 4,
+      "sender": "Tariq Usman",
+      "timestamp": "2024-07-01T08:30:00",
+      "timestamp_raw": "7/1/2024 8:30 AM",
+      "text": "order 3500 kab complete hoga? Fauji wale pressure de rahe hain",
+      "event_types": [
+        "production_status"
+      ],
+      "attribution": "explicit"
+    },
+    {
+      "n": 5,
+      "sender": "Zubair Khan",
+      "timestamp": "2024-07-14T17:00:00",
+      "timestamp_raw": "7/14/2024 5:00 PM",
+      "text": "order 3500 fabrication complete ✅",
+      "event_types": [
+        "production_status"
+      ],
+      "attribution": "explicit"
+    },
+    {
+      "n": 6,
+      "sender": "Farhan Malik",
+      "timestamp": "2024-07-19T08:30:00",
+      "timestamp_raw": "7/19/2024 8:30 AM",
+      "text": "order 3500 dispatch ho gaya. tracking number share karta hun",
+      "event_types": [
+        "dispatch_confirmation"
+      ],
+      "attribution": "explicit"
+    }
+  ],
+  "prompt_context": "[1] 2024-05-20T08:00:00 — Farhan Malik: naya order aaya hai. order 3500. client: Fauji Cement. structural steel 45 ton\n[2] 2024-06-03T09:00:00 — Ahmed Raza: order 3500 — material aa gaya. cutting start ho gayi\n[3] 2024-06-17T15:30:00 — Zubair Khan: order 3500 fabrication 60% complete\n[4] 2024-07-01T08:30:00 — Tariq Usman: order 3500 kab complete hoga? Fauji wale pressure de rahe hain\n[5] 2024-07-14T17:00:00 — Zubair Khan: order 3500 fabrication complete ✅\n[6] 2024-07-19T08:30:00 — Farhan Malik: order 3500 dispatch ho gaya. tracking number share karta hun",
+  "session_id": "cbeb9fb1647742f8b6b846dff93fb6a4"
+}

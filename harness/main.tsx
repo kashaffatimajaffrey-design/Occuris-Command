@@ -1,19 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { SessionProvider } from '../contexts/SessionContext';
-import Orders from '../components/Orders';
+import AgentChat from '../components/AgentChat';
 import '../index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <div style={{ padding: 24, background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: '#f8fafc', height: '100vh' }}>
       <h2 style={{ fontFamily: 'system-ui', fontSize: 13, letterSpacing: 1,
                    textTransform: 'uppercase', color: '#64748b', marginBottom: 12 }}>
-        Harness — Orders against the live occuralog API
+        Harness — AgentChat citation contract (real order 3500 data)
       </h2>
-      <SessionProvider>
-        <Orders />
-      </SessionProvider>
+      <div style={{ height: 'calc(100vh - 90px)' }}><AgentChat /></div>
     </div>
   </React.StrictMode>
 );
