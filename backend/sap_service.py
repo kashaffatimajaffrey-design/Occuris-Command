@@ -3,23 +3,33 @@ sap_service.py
 
 Single entry point for SAP material data.
 
-There is no mock mode. If SAP credentials are not configured, the call fails
-loudly (see sap_client.fetch_sap_materials) rather than substituting invented
-materials that the caller cannot distinguish from real ones.
+STATUS: UNVERIFIED SCAFFOLDING. Nothing in this chain — this module,
+sap_client, or sap_mapper — has ever run against a real SAP system.
 
-To connect a real pilot client:
-  1. Add SAP_ODATA_URL, SAP_USERNAME, SAP_PASSWORD to backend/.env
-  2. Nothing else in the codebase needs to change.
+A previous version of this docstring said that connecting a real client was a
+matter of adding three settings to .env and that "nothing else in the codebase
+needs to change". That was wrong, and removing the mock alternative made it
+read as more settled than it is. Expect to change sap_client and sap_mapper
+when a client provides access: see the numbered gaps in sap_client.py and the
+field-origin notes in sap_mapper.py.
+
+There is no mock mode. If SAP is not configured the call fails loudly rather
+than substituting invented materials the caller cannot distinguish from real
+ones.
 """
 
-from sap_client import fetch_sap_materials
+from sap_client import fetch_sap_materials, is_configured, missing_config
+
+__all__ = ["get_materials_from_sap", "is_configured", "missing_config"]
 
 
 async def get_materials_from_sap():
     """
-    Returns material data from the configured SAP OData endpoint.
+    Return material data from the configured SAP OData endpoint.
 
-    Raises ValueError if SAP credentials are missing, or httpx.HTTPStatusError
-    if SAP rejects the request. Both surface to the caller as a 5xx.
+    Raises ValueError when SAP credentials are missing, or
+    httpx.HTTPStatusError when SAP rejects the request. Callers should check
+    is_configured() first if they want to report unconfigured separately from
+    failed.
     """
     return await fetch_sap_materials()
