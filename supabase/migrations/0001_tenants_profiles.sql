@@ -52,3 +52,20 @@ create policy tenants_member_read on tenants
 
 -- Onboarding inserts through the backend's service-role key, which bypasses
 -- RLS, so no insert policies are needed for that path.
+
+-- Privileges for the API roles.
+--
+-- Creating a table does not grant anything to Supabase's roles. Without these,
+-- PostgREST returns 42501 "permission denied for table ..." to every caller,
+-- including service_role, and login fails before RLS is ever consulted.
+-- RLS still applies to anon and authenticated: a grant lets the role reach the
+-- table, the policies above decide which rows it sees. service_role bypasses
+-- RLS and is what the backend uses for onboarding writes.
+
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all    on public.tenants  to service_role;
+grant all    on public.profiles to service_role;
+
+grant select on public.tenants  to anon, authenticated;
+grant select on public.profiles to anon, authenticated;

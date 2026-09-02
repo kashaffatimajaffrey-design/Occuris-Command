@@ -25,17 +25,21 @@ const CommandDeck: React.FC = () => {
   // Risk Prediction
   const [riskReport, setRiskReport] = useState<any>(null);
   const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState<string | null>(null);
 
   const mpns = useMemo(() => mpnsText.split(',').map((item) => item.trim()).filter(Boolean), [mpnsText]);
 
   const fetchRiskReport = async () => {
     setRiskLoading(true);
+    setRiskError(null);
     try {
-      const res = await fetch('http://localhost:8000/api/risk/report/demo');
-      const data = await res.json();
-      setRiskReport(data);
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${base}/api/risk/report/demo`);
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      setRiskReport(await res.json());
     } catch (err) {
-      console.error("Risk API failed", err);
+      setRiskReport(null);
+      setRiskError(err instanceof Error ? err.message : String(err));
     }
     setRiskLoading(false);
   };
@@ -121,29 +125,59 @@ const CommandDeck: React.FC = () => {
           </div>
         </section>
 
-        {/* SINGLE RISK RADAR CONNECTED TO OUR API */}
+        {/* Risk signals.
+            This panel used to read riskReport.overall_risk_score and
+            riskReport.components_at_risk. Both were hardcoded literals in the
+            backend and were removed; reading components_at_risk.map() on the
+            new response threw and blanked the whole app. It now renders what
+            the endpoint actually returns. The old "+ Vector Stores" label was
+            also untrue — those were write-only and have been deleted. */}
         <section className="galaxy-panel p-6">
           <h2 className="text-xl font-black mb-4 flex items-center gap-3">
-            🛡️ Risk Radar <span className="text-sm font-normal text-purple-300">(Live from API + Vector Stores)</span>
+            🛡️ Risk Signals
           </h2>
           {riskLoading ? (
-            <p className="text-center py-8">Loading live risk intelligence...</p>
+            <p className="text-center py-8">Loading…</p>
+          ) : riskError ? (
+            <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
+              <div className="text-sm font-black text-red-300 mb-1">Could not load risk signals</div>
+              <div className="text-xs font-mono text-red-200 break-words">{riskError}</div>
+            </div>
           ) : riskReport ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white/5 p-6 rounded-2xl">
-                <div className="text-6xl font-black text-red-500">{riskReport.overall_risk_score}</div>
-                <div className="text-sm text-slate-400 mt-2">OVERALL RISK SCORE</div>
-              </div>
-              <div className="space-y-4">
-                {riskReport.components_at_risk.map((item: any, i: number) => (
-                  <div key={i} className="bg-white/5 p-5 rounded-2xl flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold">{item.name}</div>
-                      <div className="text-xs text-slate-400">{item.type}</div>
-                    </div>
-                    <div className="text-4xl font-bold text-red-400">{item.score}%</div>
+            <div className="space-y-4">
+              {!riskReport.risk_scoring_available && (
+                <div className="bg-white/5 p-5 rounded-2xl">
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">
+                    Risk scoring
                   </div>
-                ))}
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    {riskReport.risk_scoring_note ??
+                      'No risk model exists yet, so no score is shown.'}
+                  </p>
+                </div>
+              )}
+              <div className="bg-white/5 p-5 rounded-2xl">
+                <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+                  Supply chain news
+                </div>
+                {!riskReport.news?.available ? (
+                  <p className="text-sm text-slate-400">
+                    {riskReport.news?.reason ?? 'News is unavailable.'}
+                  </p>
+                ) : (riskReport.news.headlines ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-400">No headlines returned.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(riskReport.news.headlines ?? []).map((h: any, i: number) => (
+                      <li key={i} className="text-sm text-slate-300">
+                        {h.title}
+                        <span className="block text-[11px] text-slate-500">
+                          {[h.source, h.published_at].filter(Boolean).join(' · ')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           ) : null}

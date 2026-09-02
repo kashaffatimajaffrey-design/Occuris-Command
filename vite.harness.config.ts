@@ -2,8 +2,12 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Harness-only config. Swaps the tenant module for a stub so protected
-// components render without a Supabase session. Everything else is real.
+// Diagnostic harness. Mounts the REAL App with only the Supabase client
+// stubbed, so a signed-in shell renders without a live login. Everything else
+// — contexts, services, components, the backend it calls — is the real thing,
+// so a crash here is a crash in the real app.
+//
+//   npx vite --config vite.harness.config.ts --port 5174 --host localhost
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
@@ -17,20 +21,12 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: [
         {
-          find: /^\.\.\/contexts\/TenantContext$/,
-          replacement: path.resolve(__dirname, 'harness/TenantStub.tsx'),
+          find: /^\.\.\/services\/supabaseClient$/,
+          replacement: path.resolve(__dirname, 'harness/supabaseStub.ts'),
         },
         {
-          find: /^\.\.\/contexts\/SessionContext$/,
-          replacement: path.resolve(__dirname, 'harness/SessionStub.tsx'),
-        },
-        {
-          find: /^\.\.\/services\/occuralog$/,
-          replacement: path.resolve(__dirname, 'harness/occuralogStub.ts'),
-        },
-        {
-          find: /^\.\.\/services\/llmService$/,
-          replacement: path.resolve(__dirname, 'harness/llmStub.ts'),
+          find: /^\.\/supabaseClient$/,
+          replacement: path.resolve(__dirname, 'harness/supabaseStub.ts'),
         },
       ],
     },

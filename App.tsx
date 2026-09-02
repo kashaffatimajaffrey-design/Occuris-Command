@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SessionProvider } from './contexts/SessionContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -43,6 +44,7 @@ const ProtectedShell: React.FC = () => {
         <Header tenantName={tenantName} onSignOut={signOut} />
 
         <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <ErrorBoundary label="This page">
           <Routes>
             <Route path="/" element={<CommandDeck />} />
             <Route path="/overview" element={<Dashboard />} />
@@ -55,6 +57,7 @@ const ProtectedShell: React.FC = () => {
                 path land on the Command Deck rather than an empty shell. */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
@@ -63,6 +66,7 @@ const ProtectedShell: React.FC = () => {
 
 const App: React.FC = () => {
   return (
+    <ErrorBoundary label="The application">
     <AuthProvider>
       <SessionProvider>
       <Router>
@@ -73,6 +77,7 @@ const App: React.FC = () => {
       </Router>
       </SessionProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 };
 
