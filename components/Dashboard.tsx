@@ -1,111 +1,146 @@
 import React, { useEffect, useState } from 'react';
 
-// NOTE: C4 rebuilds this page around parsed events (open delays, orders at risk,
-// recent timeline activity). Until the occuralog client layer exists, the only
-// real data source here is /api/risk/report/demo. Nothing on this page is
-// allowed to render a figure that was not measured.
+// C1: this page previously showed four KPI cards, a stock/demand forecast, a
+// node-health grid and a ranked list of components at risk. All of it was
+// invented — literals in this file, or literals in the risk endpoint.
+//
+// What remains is what can actually be observed. There is no risk model, so
+// no score is shown. C3 fills this page with real order data from the parsed
+// event stream. Until then it is mostly empty, and that is correct.
 
-interface ComponentAtRisk {
-  name: string;
-  score: number;
-  type: string;
+interface Headline {
+  title: string;
+  source: string | null;
+  published_at: string | null;
+  url: string | null;
+}
+
+interface NewsBlock {
+  available: boolean;
+  reason?: string;
+  headlines: Headline[];
 }
 
 interface RiskReport {
-  overall_risk_score?: number;
-  components_at_risk?: ComponentAtRisk[];
-  geopolitical_alerts?: string[];
-  recommended_actions?: string[];
+  risk_scoring_available: boolean;
+  risk_scoring_note?: string;
+  news: NewsBlock;
 }
 
-const Dashboard: React.FC = () => {
-  const [riskReport, setRiskReport] = useState<RiskReport | null>(null);
-  const [riskLoading, setRiskLoading] = useState(true);
-  const [riskError, setRiskError] = useState<string | null>(null);
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  const fetchRiskData = async () => {
-    setRiskLoading(true);
-    setRiskError(null);
+const Dashboard: React.FC = () => {
+  const [report, setReport] = useState<RiskReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/risk/report/demo');
+      const response = await fetch(`${API_BASE}/api/risk/report/demo`);
       if (!response.ok) {
-        throw new Error(`Risk API returned ${response.status} ${response.statusText}`);
+        let detail = '';
+        try {
+          detail = (await response.json())?.detail ?? '';
+        } catch {
+          detail = await response.text();
+        }
+        throw new Error(`${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`);
       }
-      setRiskReport(await response.json());
-    } catch (error) {
+      setReport(await response.json());
+    } catch (err) {
       // No fallback data. A failed fetch is shown as a failure.
-      setRiskReport(null);
-      setRiskError(error instanceof Error ? error.message : String(error));
+      setReport(null);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setRiskLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRiskData();
+    fetchReport();
   }, []);
-
-  const components = riskReport?.components_at_risk ?? [];
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Supply Chain Overview</h1>
-          <p className="text-slate-400 text-sm font-medium">Component risk, as reported by the risk API.</p>
+      <div>
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Overview</h1>
+        <p className="text-slate-400 text-sm font-medium">
+          Only measured signals appear here.
+        </p>
+      </div>
+
+      {loading && (
+        <div className="bg-white p-8 rounded-3xl border border-indigo-50 shadow-sm">
+          <p className="text-sm text-slate-400 text-center">Loading…</p>
         </div>
-      </div>
+      )}
 
-      <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm max-w-2xl">
-        <h3 className="text-lg font-black text-slate-800 mb-6">Components at Risk</h3>
+      {error && (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 max-w-2xl">
+          <div className="text-sm font-black text-rose-700 mb-1">Could not reach the backend</div>
+          <div className="text-xs font-mono text-rose-600 break-words">{error}</div>
+          <button
+            onClick={fetchReport}
+            className="mt-4 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-        {riskLoading && (
-          <p className="text-sm text-slate-400 py-8 text-center">Loading risk report…</p>
-        )}
+      {!loading && !error && report && (
+        <div className="space-y-6 max-w-2xl">
+          {!report.risk_scoring_available && (
+            <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-2">
+                Risk scoring
+              </h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                {report.risk_scoring_note ??
+                  'No risk model exists yet, so no score is shown.'}
+              </p>
+            </div>
+          )}
 
-        {riskError && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-            <div className="text-sm font-black text-rose-700 mb-1">Could not load risk report</div>
-            <div className="text-xs font-mono text-rose-600 break-words">{riskError}</div>
-            <button
-              onClick={fetchRiskData}
-              className="mt-4 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors"
-            >
-              Retry
-            </button>
+          <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">
+              Supply chain news
+            </h3>
+
+            {!report.news?.available ? (
+              <p className="text-sm text-slate-500">
+                {report.news?.reason ?? 'News is unavailable.'}
+              </p>
+            ) : report.news.headlines.length === 0 ? (
+              <p className="text-sm text-slate-500">No headlines returned.</p>
+            ) : (
+              <ul className="space-y-3">
+                {report.news.headlines.map((h, i) => (
+                  <li key={i} className="text-sm">
+                    {h.url ? (
+                      <a
+                        href={h.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="font-semibold text-indigo-600 hover:underline"
+                      >
+                        {h.title}
+                      </a>
+                    ) : (
+                      <span className="font-semibold text-slate-700">{h.title}</span>
+                    )}
+                    <div className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      {[h.source, h.published_at].filter(Boolean).join(' · ')}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
-
-        {!riskLoading && !riskError && components.length === 0 && (
-          <p className="text-sm text-slate-400 py-8 text-center">
-            The risk API returned no components at risk.
-          </p>
-        )}
-
-        {!riskLoading && !riskError && components.length > 0 && (
-          <div className="space-y-5">
-            {components.map((item, index) => (
-              <div key={`${item.name}-${index}`}>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-bold text-slate-600">{item.name}</span>
-                  <span className={`text-[10px] font-black ${item.score > 70 ? 'text-rose-400' : 'text-slate-400'}`}>
-                    {item.score}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-100">
-                  <div
-                    className={`h-full rounded-full transition-all duration-1000 ${
-                      item.score > 75 ? 'bg-rose-300' : item.score > 50 ? 'bg-orange-300' : 'bg-emerald-300'
-                    }`}
-                    style={{ width: `${item.score}%` }}
-                  />
-                </div>
-                <div className="text-xs text-slate-500 mt-1">{item.type} risk</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

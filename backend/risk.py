@@ -1,51 +1,100 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-import requests
+"""
+risk.py
+
+Every field this endpoint used to return was a hardcoded literal: an overall
+risk score, three invented components with invented scores, a fixed weather
+disruption line, and three canned recommendations. None of it was derived
+from anything. The vector-store insert alongside it was write-only and never
+read back. See git history for what was removed.
+
+There is no risk model in this codebase. Until there is one, this endpoint
+returns only what can actually be observed — the latest news headline, when a
+NEWS_API_KEY is configured — and reports the absence of everything else
+explicitly rather than filling it with plausible numbers.
+
+C3 replaces this with real order data derived from the parsed event stream.
+"""
+
 import os
+
+import requests
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/risk", tags=["risk"])
 
-class RiskReport(BaseModel):
-    overall_risk_score: int
-    components_at_risk: list
-    geopolitical_alerts: list
-    weather_disruptions: list
-    recommended_actions: list
 
 @router.get("/report/{tenant_id}")
 async def get_risk_report(tenant_id: str = "demo"):
-    # Fetch real news
+    """
+    The current state of measurable risk signals.
+
+    `risk_scoring_available` is False because no risk model exists. Callers
+    must render the absence, not substitute a default. There is deliberately
+    no score, no component ranking, and no recommended actions in this
+    response — those were invented and have been removed.
+
+    Note: tenant_id is accepted for URL compatibility but is not yet used to
+    scope anything. Nothing here is tenant-specific.
+    """
+    response: dict = {
+        "risk_scoring_available": False,
+        "risk_scoring_note": (
+            "No risk model exists yet. Scores, component rankings, and "
+            "recommended actions are not computed and are not returned."
+        ),
+        "news": _fetch_news(),
+    }
+    return response
+
+
+def _fetch_news() -> dict:
+    """
+    Latest headline from NewsAPI, or an explicit statement that it is
+    unavailable and why.
+
+    A failure is never returned as a headline string. The old code put "News
+    API not available" into the alerts list, where the UI could not tell it
+    apart from a real headline.
+    """
+    api_key = os.getenv("NEWS_API_KEY")
+    if not api_key:
+        return {
+            "available": False,
+            "reason": "NEWS_API_KEY is not configured.",
+            "headlines": [],
+        }
+
     try:
-        news_resp = requests.get(
-            f"https://newsapi.org/v2/everything?q=taiwan+semiconductor+supply+chain&apiKey={os.getenv('NEWS_API_KEY')}&sortBy=publishedAt&language=en"
-        ).json()
-        
-        articles = news_resp.get("articles", [])
-        news_title = articles[0].get("title", "No recent news") if articles else "No recent news"
-        news_content = articles[0].get("description", "") if articles else ""
-        
-        print(f"Fetched latest news: {news_title[:100]}...")
-    except Exception as e:
-        print("NewsAPI error:", e)
-        news_title = "News API not available"
-        news_content = ""
+        resp = requests.get(
+            "https://newsapi.org/v2/everything",
+            params={
+                "q": "semiconductor supply chain",
+                "apiKey": api_key,
+                "sortBy": "publishedAt",
+                "language": "en",
+                "pageSize": 5,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        articles = resp.json().get("articles", []) or []
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": f"NewsAPI request failed: {exc}",
+            "headlines": [],
+        }
 
-    components = [
-        {"name": "chip-A123", "score": 78, "type": "geopolitical"},
-        {"name": "sensor-X45", "score": 45, "type": "weather"},
-        {"name": "board-B77", "score": 62, "type": "shipping"}
-    ]
-
-    report = RiskReport(
-        overall_risk_score=68,
-        components_at_risk=components,
-        geopolitical_alerts=[news_title],
-        weather_disruptions=["Potential delay in Shanghai port due to storm"],
-        recommended_actions=[
-            "Diversify suppliers for chip-A123 immediately",
-            "Increase buffer stock by 25% for critical components",
-            "Activate alternative routing for Taiwan shipments"
-        ]
-    )
-
-    return report.dict()
+    return {
+        "available": True,
+        "headlines": [
+            {
+                "title": a.get("title"),
+                "source": (a.get("source") or {}).get("name"),
+                "published_at": a.get("publishedAt"),
+                "url": a.get("url"),
+            }
+            for a in articles
+            if a.get("title")
+        ],
+    }
