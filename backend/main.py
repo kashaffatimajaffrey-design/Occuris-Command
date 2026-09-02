@@ -1,7 +1,6 @@
 from pathlib import Path
 import os
 
-import httpx
 from agents import run_decision_agent
 from alerts import alert_hub
 from database import supabase
@@ -10,6 +9,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from intelligence import DISRUPTIONS, disruption_scan, lifecycle_watch, scenario_plan, specmatch
 from knowledge import eval_retrieval, ingest_source, init_knowledge_db, query_knowledge
+from llm import LLMError, complete, provider_status
 from live_feeds import fetch_news_signals, fetch_supplier_quote, fetch_weather_risk, hormuz_countermeasures
 from pydantic import BaseModel
 from scheduler import start_scheduler
@@ -103,7 +103,11 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "healthy", "service": "occuris-command-backend"}
+    return {
+        "status": "healthy",
+        "service": "occuris-command-backend",
+        "llm": provider_status(),
+    }
 
 
 @app.get("/api/boms/{tenant_id}")
@@ -243,54 +247,25 @@ async def websocket_alerts(websocket: WebSocket, tenant_id: str):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return {"text": "Error: GEMINI_API_KEY not configured on server"}
+    """
+    Answer via the configured LLM provider.
 
-    model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
-    contents = [
-        {
-            "role": "user",
-            "parts": [{"text": f"{request.agentInstruction}\n\n{request.userInput}"}],
-        }
-    ]
-
-    for msg in request.history:
-        contents.append(
-            {
-                "role": "user" if msg["role"] == "user" else "model",
-                "parts": [{"text": msg["content"]}],
-            }
-        )
-
+    The response always names the provider and model that produced the text.
+    A degraded (fallback) answer is flagged so the UI can never present it as
+    a primary one. Failures are 502s, not 200s carrying an error string in the
+    text field — the previous handler did the latter, which rendered backend
+    failures in the chat as if they were model answers.
+    """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                params={"key": api_key},
-                json={
-                    "contents": contents,
-                    "generationConfig": {
-                        "temperature": 0.7,
-                        "maxOutputTokens": 1024,
-                    },
-                },
-                timeout=30.0,
-            )
+        result = await complete(
+            system=request.agentInstruction,
+            history=request.history,
+            user_input=request.userInput,
+        )
+    except LLMError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "llm_failed", "provider": exc.provider, "message": exc.message},
+        ) from exc
 
-            if response.status_code != 200:
-                print(f"Gemini API error: {response.text}")
-                return {"text": f"Error from Gemini API: {response.status_code}"}
-
-            data = response.json()
-            candidates = data.get("candidates", [])
-            if not candidates:
-                return {"text": "No candidates in response"}
-
-            parts = candidates[0].get("content", {}).get("parts", [])
-            if not parts:
-                return {"text": "No parts in response"}
-
-            return {"text": parts[0].get("text", "Empty response text")}
-    except Exception as exc:
-        return {"text": f"Error: {str(exc)}"}
+    return result.to_dict()

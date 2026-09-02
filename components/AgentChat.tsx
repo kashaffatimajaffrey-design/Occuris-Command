@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AGENTS } from '../constants';
 import { AgentConfig, Message } from '../types';
-import { geminiService } from '../services/geminiService';
+import { sendMessage } from '../services/llmService';
 
 const AgentChat: React.FC = () => {
   const [activeAgent, setActiveAgent] = useState<AgentConfig>(AGENTS[0]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [chatError, setChatError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -32,22 +33,33 @@ const AgentChat: React.FC = () => {
     setInput('');
     setIsTyping(true);
 
-    const response = await geminiService.sendMessage(
-      activeAgent.systemInstruction,
-      messages.filter(m => m.agentId === activeAgent.id),
-      input
-    );
+    try {
+      const reply = await sendMessage(
+        activeAgent.systemInstruction,
+        messages.filter(m => m.agentId === activeAgent.id),
+        input
+      );
 
-    const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'model',
-      content: response,
-      timestamp: Date.now(),
-      agentId: activeAgent.id
-    };
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        content: reply.text,
+        timestamp: Date.now(),
+        agentId: activeAgent.id,
+        provider: reply.provider,
+        model: reply.model,
+        degraded: reply.degraded,
+        primaryError: reply.primary_error ?? undefined
+      };
 
-    setMessages(prev => [...prev, aiMsg]);
-    setIsTyping(false);
+      setMessages(prev => [...prev, aiMsg]);
+      setChatError(null);
+    } catch (err) {
+      // A failed call is an error, never a model message.
+      setChatError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const currentAgentMessages = messages.filter(m => m.agentId === activeAgent.id);
@@ -166,12 +178,37 @@ const AgentChat: React.FC = () => {
                 <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
                   {msg.content}
                 </div>
+                {msg.role === 'model' && msg.degraded && (
+                  <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                    <div className="text-[10px] font-black uppercase tracking-wide text-amber-800">
+                      Degraded answer — fallback provider
+                    </div>
+                    {msg.primaryError && (
+                      <div className="text-[10px] font-mono text-amber-700 mt-1 break-words">
+                        {msg.primaryError}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className={`text-[10px] mt-2 font-bold uppercase tracking-tighter opacity-60 ${msg.role === 'user' ? 'text-indigo-50' : 'text-indigo-400'}`}>
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {msg.role === 'model' && msg.provider && (
+                    <span className="ml-2 normal-case tracking-normal">
+                      via {msg.provider}{msg.model ? ` · ${msg.model}` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           ))
+        )}
+        {chatError && (
+          <div className="flex justify-start">
+            <div className="max-w-[75%] rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3">
+              <div className="text-xs font-black text-rose-700 mb-1">Could not get an answer</div>
+              <div className="text-[11px] font-mono text-rose-600 break-words">{chatError}</div>
+            </div>
+          </div>
         )}
         {isTyping && (
           <div className="flex justify-start">
@@ -205,7 +242,7 @@ const AgentChat: React.FC = () => {
           </button>
         </div>
         <p className="mt-4 text-center text-[9px] text-indigo-300 font-black uppercase tracking-[0.2em]">
-          Gemini 3 Pro • Pastel Intelligence Protocol
+          {'Provider is reported per answer above'}
         </p>
       </div>
     </div>
