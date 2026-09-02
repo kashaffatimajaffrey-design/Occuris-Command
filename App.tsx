@@ -14,6 +14,29 @@ import Orders from './components/Orders';
 import Login from './components/Login';
 import CompleteOnboarding from './components/CompleteOnboarding';
 
+/**
+ * The /login route.
+ *
+ * Without this, a successful sign-in left the user sitting on the login page:
+ * the session was set, but the URL was still /login, so that route kept
+ * matching and kept rendering the form. The button went back to "Sign in" and
+ * nothing moved, which looks exactly like a failed login even though it
+ * worked. An authenticated visitor is sent to the app instead.
+ */
+const LoginRoute: React.FC = () => {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950 text-white text-sm">
+        Loading...
+      </div>
+    );
+  }
+
+  return session ? <Navigate to="/" replace /> : <Login />;
+};
+
 const ProtectedShell: React.FC = () => {
   const { session, loading, tenantName, needsOnboarding, signOut } = useAuth();
 
@@ -71,7 +94,7 @@ const App: React.FC = () => {
       <SessionProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<LoginRoute />} />
           <Route path="/*" element={<ProtectedShell />} />
         </Routes>
       </Router>

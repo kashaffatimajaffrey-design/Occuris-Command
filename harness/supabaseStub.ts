@@ -1,9 +1,13 @@
-// Dev harness only: a fake signed-in Supabase client, so the real App shell
-// can be mounted without a live login while diagnosing a post-login crash.
+// Dev harness only: a Supabase client that starts SIGNED OUT and becomes
+// signed in when signInWithPassword is called, so the login -> app transition
+// can be exercised without a live account.
 const SESSION = {
   access_token: 'harness-token',
   user: { id: '00000000-0000-0000-0000-000000000001', email: 'harness@example.com' },
 };
+
+let current: any = null;
+const listeners: any[] = [];
 
 function query() {
   const chain: any = {
@@ -17,11 +21,22 @@ function query() {
 
 export const supabase: any = {
   auth: {
-    getSession: async () => ({ data: { session: SESSION } }),
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-    signOut: async () => ({ error: null }),
-    signUp: async () => ({ data: { session: SESSION }, error: null }),
-    signInWithPassword: async () => ({ data: { session: SESSION }, error: null }),
+    getSession: async () => ({ data: { session: current } }),
+    onAuthStateChange: (cb: any) => {
+      listeners.push(cb);
+      return { data: { subscription: { unsubscribe() {} } } };
+    },
+    signOut: async () => {
+      current = null;
+      listeners.forEach((cb) => cb('SIGNED_OUT', null));
+      return { error: null };
+    },
+    signUp: async () => ({ data: { session: null }, error: null }),
+    signInWithPassword: async () => {
+      current = SESSION;
+      listeners.forEach((cb) => cb('SIGNED_IN', SESSION));
+      return { data: { session: SESSION }, error: null };
+    },
   },
   from: () => query(),
 };
