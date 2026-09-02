@@ -69,7 +69,10 @@ const ProtectedShell: React.FC = () => {
         <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <ErrorBoundary label="This page">
           <Routes>
-            <Route path="/" element={<CommandDeck />} />
+            {/* Orders is the product: parsed events, timelines, citations.
+                CommandDeck is the older BOM/SpecMatch surface and is out of
+                scope, so it no longer greets anyone arriving at the root. */}
+            <Route path="/" element={<Orders />} />
             <Route path="/overview" element={<Dashboard />} />
             <Route path="/command" element={<CommandDeck />} />
             <Route path="/bom-intake" element={<BomIntake />} />
