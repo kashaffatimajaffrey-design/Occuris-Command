@@ -11,11 +11,15 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 
 if not url or not key:
-    print("⚠️  Missing Supabase credentials. Using mock data fallback.")
+    print(
+        "WARNING: Supabase credentials missing. Endpoints that need the "
+        "datastore will return 503 until SUPABASE_URL and SUPABASE_KEY "
+        "are set in backend/.env."
+    )
     supabase = None
 else:
     supabase: Client = create_client(url, key)
-    print("✅ Supabase connected")
+    print("Supabase connected")
 
 def get_db():
     return supabase

@@ -1,180 +1,251 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { Link } from 'react-router-dom';
+import { useSession } from '../contexts/SessionContext';
+import {
+  OrderDetail,
+  OrderSummary,
+  TimelineEvent,
+  getOrder,
+  getOrders,
+} from '../services/occuralog';
 
-const data = [
-  { name: 'Jan', stock: 4000, demand: 2400 },
-  { name: 'Feb', stock: 3000, demand: 1398 },
-  { name: 'Mar', stock: 2000, demand: 9800 },
-  { name: 'Apr', stock: 2780, demand: 3908 },
-  { name: 'May', stock: 1890, demand: 4800 },
-  { name: 'Jun', stock: 2390, demand: 3800 },
-];
+/**
+ * Overview, built from the parsed event stream.
+ *
+ * Every figure here is decidable from the events. There is no risk score,
+ * because no risk model exists — the orders shown as needing attention are
+ * exactly the ones whose most recent delay is not followed by a dispatch,
+ * which is a rule, not an estimate.
+ *
+ * All counts are explicit-attribution only, matching the order table. Inferred
+ * attributions are reported separately and never folded into a headline
+ * number.
+ */
+
+const RECENT_ORDER_COUNT = 5;
+
+function formatStamp(value: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString([], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+}
+
+const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: string }> = ({
+  label,
+  value,
+  hint,
+}) => (
+  <div className="bg-white p-5 rounded-3xl border border-indigo-50 shadow-sm">
+    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+      {label}
+    </div>
+    <div className="text-2xl font-black text-slate-800">{value}</div>
+    {hint && <div className="text-[11px] text-slate-400 mt-1 leading-snug">{hint}</div>}
+  </div>
+);
 
 const Dashboard: React.FC = () => {
-  const [riskReport, setRiskReport] = useState<any>(null);
-  const [riskLoading, setRiskLoading] = useState(true);
-
-  // Fetch real risk data from our new API
-  const fetchRiskData = async () => {
-    setRiskLoading(true);
-    try {
-      const response = await fetch('http://localhost:8000/api/risk/report/demo');
-      const data = await response.json();
-      setRiskReport(data);
-    } catch (error) {
-      console.error("Failed to fetch risk data:", error);
-      // Fallback mock data
-      setRiskReport({
-        overall_risk_score: 65,
-        components_at_risk: [
-          { name: "chip-A123", score: 78, type: "geopolitical" },
-          { name: "sensor-X45", score: 45, type: "weather" }
-        ],
-        geopolitical_alerts: ["Shell CEO Sawan Highlights Security Challenges Amid Global Conflicts"],
-        recommended_actions: [
-          "Diversify suppliers for chip-A123",
-          "Increase buffer stock by 25%",
-          "Activate alternative routing"
-        ]
-      });
-    }
-    setRiskLoading(false);
-  };
+  const { sessionId, session, loading: sessionLoading } = useSession();
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [recent, setRecent] = useState<{ order: OrderSummary; event: TimelineEvent }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRiskData();
-  }, []);
+    if (!sessionId) {
+      setOrders([]);
+      setRecent([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
 
-  const riskData = riskReport?.components_at_risk || [
-    { region: 'East Asia', risk: 85 },
-    { region: 'Europe', risk: 30 },
-    { region: 'N. America', risk: 25 },
-    { region: 'S.E Asia', risk: 65 },
-  ];
+    (async () => {
+      const result = await getOrders(sessionId);
+      if (cancelled) return;
+      setOrders(result.orders);
+
+      // The orders list carries last_activity but not the message itself, so
+      // the few most recently active orders are fetched for their latest row.
+      const top = result.orders.filter((o) => o.last_activity).slice(0, RECENT_ORDER_COUNT);
+      const details = await Promise.all(
+        top.map((order) =>
+          getOrder(sessionId, order.order_no)
+            .then((detail: OrderDetail) => ({ order, detail }))
+            .catch(() => null)
+        )
+      );
+      if (cancelled) return;
+
+      setRecent(
+        details
+          .filter((d): d is { order: OrderSummary; detail: OrderDetail } => d !== null)
+          .map(({ order, detail }) => ({ order, event: detail.timeline[detail.timeline.length - 1] }))
+          .filter((row) => row.event)
+      );
+    })()
+      .catch((err) => {
+        if (cancelled) return;
+        setOrders([]);
+        setRecent([]);
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const openDelays = orders.filter((o) => o.open_delay);
+  const inferredTotal = orders.reduce((sum, o) => sum + o.inferred_event_count, 0);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Supply Chain Overview</h1>
-          <p className="text-slate-400 text-sm font-medium italic">Production-grade Multi-Agent Distributed Intelligence.</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 bg-white border border-indigo-50 rounded-xl text-sm font-semibold text-slate-600 hover:bg-indigo-50 transition-colors shadow-sm">Export Data</button>
-          <button className="px-4 py-2 bg-indigo-400 text-white rounded-xl text-sm font-bold hover:bg-indigo-500 shadow-lg shadow-indigo-200 transition-all">Generate Strategy</button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Overview</h1>
+        <p className="text-slate-400 text-sm font-medium">
+          {session
+            ? `${session.original_filename} · ${session.stats.total_messages} messages parsed`
+            : 'Every figure here is derived from parsed events.'}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KpiCard title="Inventory Value" value="$42.8M" change="+4.2%" positive={false} icon="💎" colorClass="bg-purple-100 text-purple-600" />
-        <KpiCard title="Shortages" value="12" change="-2" positive={true} icon="⚡" colorClass="bg-rose-100 text-rose-600" />
-        <KpiCard title="Avg Lead Time" value="114 Days" change="+12d" positive={false} icon="⏳" colorClass="bg-orange-100 text-orange-600" />
-        <KpiCard title="Supplier Health" value="94.2%" change="+1.2%" positive={true} icon="🌿" colorClass="bg-emerald-100 text-emerald-600" />
-      </div>
+      {!sessionLoading && !sessionId && (
+        <div className="bg-white rounded-3xl border border-indigo-50 shadow-sm p-10 text-center">
+          <div className="text-3xl mb-3">📄</div>
+          <h3 className="text-sm font-black text-slate-800 mb-1">No session selected</h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Upload a WhatsApp export to see orders and delays.
+          </p>
+          <Link
+            to="/orders"
+            className="inline-block px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600"
+          >
+            Go to Orders
+          </Link>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-indigo-50 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-black text-slate-800">Stock vs Demand Forecast</h3>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-400"></div> <span className="text-[10px] font-bold text-slate-400 uppercase">Stock</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-400"></div> <span className="text-[10px] font-bold text-slate-400 uppercase">Demand</span></div>
+      {error && (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 max-w-2xl">
+          <div className="text-sm font-black text-rose-700 mb-1">Could not load the overview</div>
+          <div className="text-xs font-mono text-rose-600 break-words">{error}</div>
+        </div>
+      )}
+
+      {loading && <p className="text-sm text-slate-400 py-8 text-center">Loading…</p>}
+
+      {!loading && !error && sessionId && orders.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <Stat label="Orders" value={orders.length} hint="Distinct order numbers in this export" />
+            <Stat
+              label="Open delays"
+              value={<span className={openDelays.length ? 'text-rose-600' : ''}>{openDelays.length}</span>}
+              hint="Most recent delay not followed by a dispatch"
+            />
+            <Stat
+              label="Events attributed"
+              value={orders.reduce((sum, o) => sum + o.event_count, 0)}
+              hint={
+                inferredTotal > 0
+                  ? `${inferredTotal} further events attributed by inference, not counted here`
+                  : 'Messages that state their order number'
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl border border-indigo-50 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-1">
+                Orders needing attention
+              </h3>
+              <p className="text-[11px] text-slate-400 mb-4 leading-snug">
+                An order is listed when its most recent delay has no dispatch after it. A payment
+                does not close a delay. There is no risk score — this is the rule, not an estimate.
+              </p>
+
+              {openDelays.length === 0 ? (
+                <p className="text-sm text-slate-400 py-6 text-center">
+                  No order has an open delay.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {openDelays.map((order) => (
+                    <li
+                      key={order.order_no}
+                      className="flex items-center justify-between rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-3"
+                    >
+                      <div>
+                        <span className="font-mono font-black text-rose-700 text-sm">
+                          {order.order_no}
+                        </span>
+                        <div className="text-[11px] text-slate-500">
+                          last activity {formatStamp(order.last_activity)}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-rose-100 text-rose-700">
+                        Open delay
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl border border-indigo-50 shadow-sm p-6">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-1">
+                Recent timeline activity
+              </h3>
+              <p className="text-[11px] text-slate-400 mb-4 leading-snug">
+                The latest message on each of the {RECENT_ORDER_COUNT} most recently active orders,
+                verbatim.
+              </p>
+
+              {recent.length === 0 ? (
+                <p className="text-sm text-slate-400 py-6 text-center">No activity to show.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {recent.map(({ order, event }) => (
+                    <li key={order.order_no} className="border-l-2 border-indigo-100 pl-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-indigo-500 text-xs">
+                          {order.order_no}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700">{event.sender}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {formatStamp(event.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-snug mt-0.5">{event.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f8fafc" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <Tooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                <Area type="monotone" dataKey="stock" stroke="#818cf8" fillOpacity={1} fill="url(#colorStock)" strokeWidth={3} />
-                <Area type="monotone" dataKey="demand" stroke="#fb7185" fill="transparent" strokeDasharray="6 6" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        </>
+      )}
 
-        <div className="space-y-6">
-          {/* UPDATED RISK DISTRIBUTION - NOW USING REAL DATA */}
-          <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm">
-            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center justify-between">
-              Risk Distribution 
-              <span className="px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold">LIVE</span>
-            </h3>
-            
-            {riskLoading ? (
-              <p className="text-center py-8">Loading real risk data...</p>
-            ) : (
-              <div className="space-y-5">
-                {riskReport?.components_at_risk?.map((item: any, index: number) => (
-                  <div key={index} className="group">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm font-bold text-slate-600">{item.name}</span>
-                      <span className={`text-[10px] font-black ${item.score > 70 ? 'text-rose-400' : 'text-slate-400'}`}>{item.score}%</span>
-                    </div>
-                    <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-100">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${
-                          item.score > 75 ? 'bg-rose-300' : item.score > 50 ? 'bg-orange-300' : 'bg-emerald-300'
-                        }`} 
-                        style={{ width: `${item.score}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1">{item.type} risk</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Technical Glance Card */}
-          <div className="bg-indigo-900 p-6 rounded-3xl shadow-xl shadow-indigo-100 overflow-hidden relative group">
-             <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/30 transition-colors"></div>
-             <h3 className="text-indigo-100 text-sm font-black uppercase tracking-widest mb-4">Node Health</h3>
-             <div className="grid grid-cols-4 gap-2 mb-4">
-               {[...Array(8)].map((_, i) => (
-                 <div key={i} className="aspect-square bg-white/10 rounded-lg flex items-center justify-center border border-white/10 hover:border-white/30 transition-colors">
-                   <div className={`w-1.5 h-1.5 rounded-full ${i === 3 ? 'bg-rose-400 animate-pulse' : 'bg-emerald-400'}`}></div>
-                 </div>
-               ))}
-             </div>
-             <div className="flex justify-between items-end">
-               <div>
-                  <div className="text-[10px] font-bold text-indigo-300 uppercase">Vector Sync</div>
-                  <div className="text-xl font-black text-white">4 / 4 DBs</div>
-               </div>
-               <div className="text-right">
-                  <div className="text-[10px] font-bold text-indigo-300 uppercase">Latency</div>
-                  <div className="text-xl font-black text-white">42ms</div>
-               </div>
-             </div>
-          </div>
-        </div>
-      </div>
+      {!loading && !error && sessionId && orders.length === 0 && (
+        <p className="text-sm text-slate-400 py-8 text-center">
+          This session contains no orders.
+        </p>
+      )}
     </div>
   );
 };
-
-const KpiCard: React.FC<{ title: string; value: string; change: string; positive: boolean; icon: string; colorClass: string }> = ({ title, value, change, positive, icon, colorClass }) => (
-  <div className="bg-white p-6 rounded-3xl border border-indigo-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default">
-    <div className="flex justify-between items-start mb-6">
-      <div className={`w-14 h-14 ${colorClass.split(' ')[0]} rounded-2xl flex items-center justify-center text-3xl shadow-inner`}>
-        {icon}
-      </div>
-      <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-700'}`}>
-        {change}
-      </span>
-    </div>
-    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</h3>
-    <p className="text-2xl font-black text-slate-800">{value}</p>
-  </div>
-);
 
 export default Dashboard;

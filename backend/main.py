@@ -1,15 +1,14 @@
 from pathlib import Path
 import os
 
-import httpx
 from agents import run_decision_agent
 from alerts import alert_hub
-from database import supabase
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from intelligence import DISRUPTIONS, disruption_scan, lifecycle_watch, scenario_plan, specmatch
 from knowledge import eval_retrieval, ingest_source, init_knowledge_db, query_knowledge
+from llm import LLMError, complete, provider_status
 from live_feeds import fetch_news_signals, fetch_supplier_quote, fetch_weather_risk, hormuz_countermeasures
 from pydantic import BaseModel
 from scheduler import start_scheduler
@@ -17,9 +16,9 @@ from store import create_bom, get_bom, init_db, list_boms
 
 # NEW IMPORTS FOR RISK PREDICTION
 from risk import router as risk_router
-from vector_stores import vector_manager  # This initializes Chroma + Pinecone
 from sap_routes import router as sap_router
 from onboarding_routes import router as onboarding_router
+from occuralog_routes import router as occuralog_router
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -83,7 +82,7 @@ class AgentRequest(BaseModel):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -95,8 +94,6 @@ def startup() -> None:
     init_db()
     init_knowledge_db()
     start_scheduler()
-    # Initialize vector stores (Chroma + Pinecone)
-    print("Vector stores (ChromaDB + Pinecone) initialized")
 
 
 @app.get("/")
@@ -106,7 +103,11 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "healthy", "service": "occuris-command-backend"}
+    return {
+        "status": "healthy",
+        "service": "occuris-command-backend",
+        "llm": provider_status(),
+    }
 
 
 @app.get("/api/boms/{tenant_id}")
@@ -128,20 +129,6 @@ def post_bom(request: BomCreateRequest):
         return create_bom(request.tenant_id, request.name, request.raw_text, request.actor)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/materials/{tenant_id}")
-async def get_materials(tenant_id: str):
-    if not supabase:
-        return get_mock_materials(tenant_id)
-    try:
-        response = supabase.table("sap_materials").select("*").eq("tenant_id", tenant_id).execute()
-        if hasattr(response, "data"):
-            return response.data
-        return []
-    except Exception as exc:
-        print(f"Material lookup failed: {exc}")
-        return get_mock_materials(tenant_id)
 
 
 @app.post("/api/specmatch")
@@ -228,6 +215,7 @@ def decision_agent(request: AgentRequest):
 app.include_router(risk_router)
 app.include_router(sap_router)
 app.include_router(onboarding_router)
+app.include_router(occuralog_router)
 
 
 @app.websocket("/ws/alerts/{tenant_id}")
@@ -243,74 +231,25 @@ async def websocket_alerts(websocket: WebSocket, tenant_id: str):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return {"text": "Error: GEMINI_API_KEY not configured on server"}
+    """
+    Answer via the configured LLM provider.
 
-    model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
-    contents = [
-        {
-            "role": "user",
-            "parts": [{"text": f"{request.agentInstruction}\n\n{request.userInput}"}],
-        }
-    ]
-
-    for msg in request.history:
-        contents.append(
-            {
-                "role": "user" if msg["role"] == "user" else "model",
-                "parts": [{"text": msg["content"]}],
-            }
-        )
-
+    The response always names the provider and model that produced the text.
+    A degraded (fallback) answer is flagged so the UI can never present it as
+    a primary one. Failures are 502s, not 200s carrying an error string in the
+    text field — the previous handler did the latter, which rendered backend
+    failures in the chat as if they were model answers.
+    """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                params={"key": api_key},
-                json={
-                    "contents": contents,
-                    "generationConfig": {
-                        "temperature": 0.7,
-                        "maxOutputTokens": 1024,
-                    },
-                },
-                timeout=30.0,
-            )
+        result = await complete(
+            system=request.agentInstruction,
+            history=request.history,
+            user_input=request.userInput,
+        )
+    except LLMError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "llm_failed", "provider": exc.provider, "message": exc.message},
+        ) from exc
 
-            if response.status_code != 200:
-                print(f"Gemini API error: {response.text}")
-                return {"text": f"Error from Gemini API: {response.status_code}"}
-
-            data = response.json()
-            candidates = data.get("candidates", [])
-            if not candidates:
-                return {"text": "No candidates in response"}
-
-            parts = candidates[0].get("content", {}).get("parts", [])
-            if not parts:
-                return {"text": "No parts in response"}
-
-            return {"text": parts[0].get("text", "Empty response text")}
-    except Exception as exc:
-        return {"text": f"Error: {str(exc)}"}
-
-
-def get_mock_materials(tenant_id: str):
-    mock_data = {
-        "global-semi-01": [
-            {"matnr": "MAT-7701", "name": "ASML NXE:3400C Mask", "category": "Lithography", "stock_level": 4, "safety_stock": 2, "lead_time": 180, "supplier": "ASML", "abc_class": "A", "unit": "Units"},
-            {"matnr": "MAT-1205", "name": "EUV Photoresist (Type-B)", "category": "Chemicals", "stock_level": 850, "safety_stock": 200, "lead_time": 30, "supplier": "JSR Corp", "abc_class": "A", "unit": "Liters"},
-            {"matnr": "MAT-9920", "name": "Silicon Wafer 300mm", "category": "Substrate", "stock_level": 5400, "safety_stock": 1000, "lead_time": 45, "supplier": "Sumco", "abc_class": "B", "unit": "Wafers"},
-        ],
-        "litho-tech-solutions": [
-            {"matnr": "MAT-4412", "name": "Palladium Sputtering Target", "category": "Metals", "stock_level": 12, "safety_stock": 5, "lead_time": 90, "supplier": "Heraeus", "abc_class": "A", "unit": "Kg"},
-        ],
-        "nano-foundry-ops": [
-            {"matnr": "MAT-3301", "name": "HBM3 Memory Die (8GB)", "category": "Component", "stock_level": 12000, "safety_stock": 3000, "lead_time": 60, "supplier": "SK Hynix", "abc_class": "A", "unit": "Die"},
-        ],
-    }
-    return mock_data.get(tenant_id, [])
-
-
-print("Occuris Command server startup complete.")
+    return result.to_dict()

@@ -1,30 +1,35 @@
 """
 sap_service.py
 
-This is the ONE switch that controls everything.
+Single entry point for SAP material data.
 
-Right now, SAP_USE_MOCK=true (default), so the app uses fake data
-from sap_mock.py — perfect for demos and development.
+STATUS: UNVERIFIED SCAFFOLDING. Nothing in this chain — this module,
+sap_client, or sap_mapper — has ever run against a real SAP system.
 
-The day a real pilot client gives us SAP access:
-  1. Add their SAP_ODATA_URL, SAP_USERNAME, SAP_PASSWORD to .env
-  2. Change SAP_USE_MOCK to false in .env
-  3. Nothing else in the codebase needs to change.
+A previous version of this docstring said that connecting a real client was a
+matter of adding three settings to .env and that "nothing else in the codebase
+needs to change". That was wrong, and removing the mock alternative made it
+read as more settled than it is. Expect to change sap_client and sap_mapper
+when a client provides access: see the numbered gaps in sap_client.py and the
+field-origin notes in sap_mapper.py.
+
+There is no mock mode. If SAP is not configured the call fails loudly rather
+than substituting invented materials the caller cannot distinguish from real
+ones.
 """
 
-import os
-from sap_client import fetch_sap_materials
-from sap_mock import fetch_sap_materials_mock
+from sap_client import fetch_sap_materials, is_configured, missing_config
 
-USE_MOCK = os.getenv("SAP_USE_MOCK", "true").lower() == "true"
+__all__ = ["get_materials_from_sap", "is_configured", "missing_config"]
 
 
 async def get_materials_from_sap():
     """
-    Returns material data — either fake (mock) or real,
-    depending on the SAP_USE_MOCK setting in .env.
+    Return material data from the configured SAP OData endpoint.
+
+    Raises ValueError when SAP credentials are missing, or
+    httpx.HTTPStatusError when SAP rejects the request. Callers should check
+    is_configured() first if they want to report unconfigured separately from
+    failed.
     """
-    if USE_MOCK:
-        return fetch_sap_materials_mock()
-    else:
-        return await fetch_sap_materials()
+    return await fetch_sap_materials()

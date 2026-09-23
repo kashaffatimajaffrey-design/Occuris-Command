@@ -1,100 +1,159 @@
-
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Link } from 'react-router-dom';
+import { useSession } from '../contexts/SessionContext';
 
-const spendData = [
-  { name: 'Direct Materials', value: 65, color: '#818cf8' }, // Indigo-400
-  { name: 'R&D Equipment', value: 20, color: '#c084fc' }, // Purple-400
-  { name: 'Chemicals/Gases', value: 10, color: '#2dd4bf' }, // Teal-400
-  { name: 'MRO/Other', value: 5, color: '#fbbf24' }, // Amber-400
-];
+/**
+ * Reporting over the parsed session.
+ *
+ * Everything here is a count the parser produced. There are no derived
+ * percentages beyond the ones occuralog computes and names honestly, and no
+ * accuracy figure — that would need labelled ground truth, which does not
+ * exist. The classification rate below counts whether a keyword matched, not
+ * whether the label was right, and says so.
+ */
 
-const performanceData = [
-  { supplier: 'ASML', quality: 99, delivery: 88, price: 60 },
-  { supplier: 'TSMC', quality: 98, delivery: 95, price: 70 },
-  { supplier: 'JSR Corp', quality: 95, delivery: 92, price: 85 },
-  { supplier: 'Heraeus', quality: 94, delivery: 90, price: 80 },
-];
+const Bar: React.FC<{ label: string; value: number; max: number; muted?: boolean }> = ({
+  label,
+  value,
+  max,
+  muted,
+}) => (
+  <div>
+    <div className="flex justify-between items-baseline mb-1">
+      <span className={`text-xs font-bold ${muted ? 'text-slate-400' : 'text-slate-600'}`}>
+        {label.replace(/_/g, ' ')}
+      </span>
+      <span className={`text-xs font-black ${muted ? 'text-slate-400' : 'text-slate-700'}`}>
+        {value}
+      </span>
+    </div>
+    <div className="w-full bg-slate-50 rounded-full h-2 overflow-hidden border border-slate-100">
+      <div
+        className={`h-full rounded-full ${muted ? 'bg-slate-300' : 'bg-indigo-400'}`}
+        style={{ width: `${max > 0 ? (value / max) * 100 : 0}%` }}
+      />
+    </div>
+  </div>
+);
 
 const Analytics: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  const { session, sessionId, loading } = useSession();
+
+  if (loading) {
+    return <p className="text-sm text-slate-400 py-10 text-center">Loading…</p>;
+  }
+
+  if (!sessionId || !session) {
+    return (
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Intelligence Reports</h1>
-          <p className="text-slate-400 text-sm font-medium">Strategic ecosystem metrics.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
+          <p className="text-slate-400 text-sm font-medium">Counts from the parsed export.</p>
         </div>
-        <div className="flex gap-2">
-          <button className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-700 transition-colors shadow-lg shadow-slate-200">
-            Run AI Compliance Audit
-          </button>
+        <div className="bg-white p-12 rounded-2xl border border-indigo-50 shadow-sm text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">No session selected</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed mb-4">
+            Upload a WhatsApp export to see what the parser found in it.
+          </p>
+          <Link
+            to="/orders"
+            className="inline-block px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600"
+          >
+            Go to Orders
+          </Link>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  const counts = session.stats.event_type_counts;
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max = entries.length ? entries[0][1] : 0;
+  const attribution = session.attribution;
+
+  return (
+    <div className="space-y-6 pb-12">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
+        <p className="text-slate-400 text-sm font-medium">
+          {session.original_filename} · {session.stats.total_messages} messages
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-8 rounded-2xl border border-indigo-50 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">Spend Distribution (Q3)</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={spendData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={8}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {spendData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+          <h3 className="text-lg font-bold text-slate-800 mb-1">Event types</h3>
+          <p className="text-[11px] text-slate-400 mb-6 leading-snug">
+            How many messages matched each rule. A message can match more than one, so these sum to
+            more than the message count.
+          </p>
+          <div className="space-y-4">
+            {entries.map(([type, value]) => (
+              <Bar key={type} label={type} value={value} max={max} muted={type === 'unknown'} />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white p-8 rounded-2xl border border-indigo-50 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Classification</h3>
+            <p className="text-[11px] text-slate-400 mb-5 leading-snug">
+              <strong className="text-slate-500">This is not accuracy.</strong> It counts whether
+              some keyword fired, not whether the label was correct. Measuring accuracy needs
+              labelled ground truth, and none exists for this data.
+            </p>
+            <dl className="space-y-2 text-xs">
+              {[
+                ['Messages parsed', session.stats.total_messages],
+                ['Matched a keyword', session.stats.classified],
+                ['Matched nothing', session.stats.unknown],
+                ['Short or ack-like, needs context', session.stats.unknown_flagged_for_llm_review],
+                ['Might be reachable by better rules', session.stats.unknown_possibly_rule_classifiable],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="flex justify-between">
+                  <dt className="text-slate-500">{label}</dt>
+                  <dd className="font-bold text-slate-700">{value}</dd>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-slate-100">
+                <dt className="text-slate-500">Keyword match rate</dt>
+                <dd className="font-black text-slate-800">{session.stats.classification_rate}%</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl border border-indigo-50 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Order attribution</h3>
+            {!attribution ? (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Only messages that state an order number are attributed so far. Run the attribution
+                pass on this session to have a model judge which of the rest belong to a thread.
+              </p>
+            ) : (
+              <>
+                <p className="text-[11px] text-slate-400 mb-5 leading-snug">
+                  Explicit means the message stated the order number. Inferred means a model judged
+                  it part of that conversation — a guess, kept separate everywhere.
+                </p>
+                <dl className="space-y-2 text-xs">
+                  {[
+                    ['Explicit', attribution.explicit],
+                    ['Inferred', attribution.inferred],
+                    ['Unattributed', attribution.unattributed],
+                    ['Proposals the model rejected', attribution.proposals_rejected_by_model],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="flex justify-between">
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="font-bold text-slate-700">{value}</dd>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{fontSize: '12px', fontWeight: 'bold'}} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white p-8 rounded-2xl border border-indigo-50 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">Supplier Scorecard</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={performanceData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f8fafc" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="supplier" type="category" axisLine={false} tickLine={false} width={80} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 'bold'}} />
-                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                <Bar dataKey="quality" fill="#818cf8" radius={[0, 8, 8, 0]} barSize={14} />
-                <Bar dataKey="delivery" fill="#2dd4bf" radius={[0, 8, 8, 0]} barSize={14} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex gap-6 text-[10px] font-black uppercase tracking-wider justify-center">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-400"></div> Quality</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-teal-400"></div> Reliability</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-8 rounded-2xl border border-indigo-50 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-800 mb-6">Strategic Pathing</h3>
-        <div className="space-y-4">
-          <div className="flex gap-5 p-6 bg-teal-50/50 border border-teal-100 rounded-2xl">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm border border-teal-50">🌱</div>
-            <div>
-              <h4 className="font-bold text-teal-800">Diversity in Sourcing</h4>
-              <p className="text-sm text-teal-900/60 leading-relaxed font-medium">Over-dependence on ASML identified. Secondary lithography maintenance contracts should be established in the EMEA sector.</p>
-            </div>
-          </div>
-          <div className="flex gap-5 p-6 bg-rose-50/50 border border-rose-100 rounded-2xl">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm border border-rose-50">🌸</div>
-            <div>
-              <h4 className="font-bold text-rose-800">Compliance Refresh</h4>
-              <p className="text-sm text-rose-900/60 leading-relaxed font-medium">New EAR guidelines effective next Tuesday. Ensure all 3nm equipment batches are re-validated by the Compliance Agent by EOD Friday.</p>
-            </div>
+                </dl>
+                <p className="text-[10px] text-slate-400 mt-4 font-mono">
+                  {attribution.method} · {attribution.model}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -1,25 +1,27 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-export interface Material {
-  id: number;
-  matnr: string;
-  name: string;
-  category: string;
-  stock_level: number;
-  safety_stock: number;
-  lead_time: number;
-  supplier: string;
-  abc_class: string;
-  unit: string;
-  tenant_id: string;
-}
-
-export async function getMaterials(tenantId: string): Promise<Material[]> {
-  const response = await fetch(`${API_BASE}/api/materials/${tenantId}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch materials');
+/**
+ * Turn a non-OK response into an error that carries what the server actually
+ * said. Swallowing the server's `detail` leaves the UI able to report that
+ * something failed but not why, which is the difference between a usable
+ * error and a shrug.
+ */
+async function failure(response: Response, action: string): Promise<Error> {
+  let detail = '';
+  try {
+    const body = await response.json();
+    detail = typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail ?? body);
+  } catch {
+    try {
+      detail = await response.text();
+    } catch {
+      detail = '';
+    }
   }
-  return response.json();
+  return new Error(
+    `${action} failed (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''})` +
+      (detail ? `: ${detail}` : '')
+  );
 }
 
 export async function healthCheck() {
@@ -60,9 +62,7 @@ export interface BomDetail {
 
 export async function getBoms(tenantId: string): Promise<BomSummary[]> {
   const response = await fetch(`${API_BASE}/api/boms/${tenantId}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch BOMs');
-  }
+  if (!response.ok) throw await failure(response, 'Loading BOMs');
   return response.json();
 }
 
@@ -78,10 +78,7 @@ export async function createBom(payload: {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Failed to create BOM' }));
-    throw new Error(error.detail || 'Failed to create BOM');
-  }
+  if (!response.ok) throw await failure(response, 'Creating BOM');
 
   return response.json();
 }
@@ -92,19 +89,19 @@ export async function runSpecMatch(mpn: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mpn }),
   });
-  if (!response.ok) throw new Error('SpecMatch failed');
+  if (!response.ok) throw await failure(response, 'SpecMatch');
   return response.json();
 }
 
 export async function getLifecycle(mpn: string) {
   const response = await fetch(`${API_BASE}/api/lifecycle/${encodeURIComponent(mpn)}`);
-  if (!response.ok) throw new Error('Lifecycle scan failed');
+  if (!response.ok) throw await failure(response, 'Lifecycle scan');
   return response.json();
 }
 
 export async function getDisruptions() {
   const response = await fetch(`${API_BASE}/api/disruptions`);
-  if (!response.ok) throw new Error('Disruption feed failed');
+  if (!response.ok) throw await failure(response, 'Disruption feed');
   return response.json();
 }
 
@@ -114,7 +111,7 @@ export async function runDisruptionScan(mpns: string[]) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mpns }),
   });
-  if (!response.ok) throw new Error('Disruption scan failed');
+  if (!response.ok) throw await failure(response, 'Disruption scan');
   return response.json();
 }
 
@@ -130,7 +127,7 @@ export async function runScenarioPlan(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error('Scenario plan failed');
+  if (!response.ok) throw await failure(response, 'Scenario plan');
   return response.json();
 }
 
@@ -145,7 +142,7 @@ export async function ingestKnowledge(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error('Knowledge ingest failed');
+  if (!response.ok) throw await failure(response, 'Knowledge ingest');
   return response.json();
 }
 
@@ -155,12 +152,12 @@ export async function queryKnowledge(payload: { tenant_id: string; query: string
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error('Knowledge query failed');
+  if (!response.ok) throw await failure(response, 'Knowledge query');
   return response.json();
 }
 
 export async function getKnowledgeEval(tenantId: string) {
   const response = await fetch(`${API_BASE}/api/knowledge/eval/${tenantId}`);
-  if (!response.ok) throw new Error('Knowledge eval failed');
+  if (!response.ok) throw await failure(response, 'Knowledge eval');
   return response.json();
 }

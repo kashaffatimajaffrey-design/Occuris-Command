@@ -7,17 +7,30 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setNotice('');
     setLoading(true);
 
     try {
       if (isSignUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
+
+        if (!data.session) {
+          // Email confirmation is on: the account exists but there is no
+          // session yet, so the workspace cannot be created. Previously this
+          // branch did nothing at all and the form just reset, which is
+          // indistinguishable from a failure.
+          setNotice(
+            'Account created. Check your email for a confirmation link, then come back and sign in.'
+          );
+          return;
+        }
 
         if (data.session) {
             const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
@@ -83,6 +96,7 @@ const Login: React.FC = () => {
           />
 
           {error && <p className="text-rose-400 text-xs">{error}</p>}
+          {notice && <p className="text-sky-300 text-xs">{notice}</p>}
 
           <button
             type="submit"
